@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useActionState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 
@@ -6,30 +6,25 @@ const LoginPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, submitAction, isPending] = useActionState<string | null, FormData>(
+    async (_prev, formData) => {
+      const email = formData.get('email') as string;
+      const password = formData.get('password') as string;
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsSubmitting(true);
-
-    try {
-      await login(email, password);
-      navigate('/');
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosErr = err as { response?: { data?: { message?: string } } };
-        setError(axiosErr.response?.data?.message ?? 'Login failed');
-      } else {
-        setError('Something went wrong');
+      try {
+        await login(email, password);
+        navigate('/');
+        return null;
+      } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'response' in err) {
+          const axiosErr = err as { response?: { data?: { message?: string } } };
+          return axiosErr.response?.data?.message ?? 'Login failed';
+        }
+        return 'Something went wrong';
       }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    },
+    null,
+  );
 
   return (
     <main className="flex items-center justify-center min-h-screen px-4">
@@ -43,15 +38,14 @@ const LoginPage = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <form action={submitAction} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="email" className="text-sm text-text-muted">Email</label>
             <input
               id="email"
+              name="email"
               type="email"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               className="bg-background border border-border rounded-lg px-4 py-2.5 text-text placeholder:text-text-muted/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
             />
@@ -61,10 +55,9 @@ const LoginPage = () => {
             <label htmlFor="password" className="text-sm text-text-muted">Password</label>
             <input
               id="password"
+              name="password"
               type="password"
               required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               className="bg-background border border-border rounded-lg px-4 py-2.5 text-text placeholder:text-text-muted/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
             />
@@ -72,10 +65,10 @@ const LoginPage = () => {
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isPending}
             className="bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-semibold rounded-lg py-2.5 transition cursor-pointer"
           >
-            {isSubmitting ? 'Signing in...' : 'Sign in'}
+            {isPending ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
 

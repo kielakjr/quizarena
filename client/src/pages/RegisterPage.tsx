@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useActionState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 
@@ -6,38 +6,31 @@ const RegisterPage = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, submitAction, isPending] = useActionState<string | null, FormData>(
+    async (_prev, formData) => {
+      const username = formData.get('username') as string;
+      const email = formData.get('email') as string;
+      const password = formData.get('password') as string;
+      const confirmPassword = formData.get('confirmPassword') as string;
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      await register(username, email, password);
-      navigate('/');
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosErr = err as { response?: { data?: { message?: string } } };
-        setError(axiosErr.response?.data?.message ?? 'Registration failed');
-      } else {
-        setError('Something went wrong');
+      if (password !== confirmPassword) {
+        return 'Passwords do not match';
       }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+
+      try {
+        await register(username, email, password);
+        navigate('/');
+        return null;
+      } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'response' in err) {
+          const axiosErr = err as { response?: { data?: { message?: string } } };
+          return axiosErr.response?.data?.message ?? 'Registration failed';
+        }
+        return 'Something went wrong';
+      }
+    },
+    null,
+  );
 
   return (
     <main className="flex items-center justify-center min-h-screen px-4">
@@ -51,15 +44,14 @@ const RegisterPage = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <form action={submitAction} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="username" className="text-sm text-text-muted">Username</label>
             <input
               id="username"
+              name="username"
               type="text"
               required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
               placeholder="Pick a username"
               className="bg-background border border-border rounded-lg px-4 py-2.5 text-text placeholder:text-text-muted/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
             />
@@ -69,10 +61,9 @@ const RegisterPage = () => {
             <label htmlFor="email" className="text-sm text-text-muted">Email</label>
             <input
               id="email"
+              name="email"
               type="email"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               className="bg-background border border-border rounded-lg px-4 py-2.5 text-text placeholder:text-text-muted/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
             />
@@ -82,10 +73,9 @@ const RegisterPage = () => {
             <label htmlFor="password" className="text-sm text-text-muted">Password</label>
             <input
               id="password"
+              name="password"
               type="password"
               required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               placeholder="Create a password"
               className="bg-background border border-border rounded-lg px-4 py-2.5 text-text placeholder:text-text-muted/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
             />
@@ -95,10 +85,9 @@ const RegisterPage = () => {
             <label htmlFor="confirmPassword" className="text-sm text-text-muted">Confirm password</label>
             <input
               id="confirmPassword"
+              name="confirmPassword"
               type="password"
               required
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Repeat your password"
               className="bg-background border border-border rounded-lg px-4 py-2.5 text-text placeholder:text-text-muted/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
             />
@@ -106,10 +95,10 @@ const RegisterPage = () => {
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isPending}
             className="bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-semibold rounded-lg py-2.5 transition cursor-pointer"
           >
-            {isSubmitting ? 'Creating account...' : 'Create account'}
+            {isPending ? 'Creating account...' : 'Create account'}
           </button>
         </form>
 
