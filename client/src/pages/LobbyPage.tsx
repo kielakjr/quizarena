@@ -1,11 +1,41 @@
+import { useEffect, useRef } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router';
-
-const mockPlayers = ['You', 'Alex', 'Maya', 'Sam'];
+import { useGameSocket } from '../hooks/useGameSocket';
+import LivePlayPage from './LivePlayPage';
 
 const LobbyPage = () => {
   const { pin } = useParams();
   const [searchParams] = useSearchParams();
   const nickname = searchParams.get('nickname') ?? 'Player';
+  const { gameState, actions } = useGameSocket();
+  const joined = useRef(false);
+
+  useEffect(() => {
+    if (pin && !joined.current) {
+      joined.current = true;
+      actions.joinAsPlayer(pin, nickname);
+    }
+  }, [pin, nickname, actions]);
+
+  if (gameState.error) {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-screen px-4 gap-4">
+        <p className="text-wrong text-lg font-semibold">{gameState.error}</p>
+        <Link to="/" className="text-primary hover:underline text-sm">Go home</Link>
+      </main>
+    );
+  }
+
+  if (gameState.phase !== 'connecting' && gameState.phase !== 'lobby') {
+    return (
+      <LivePlayPage
+        pin={pin!}
+        nickname={nickname}
+        gameState={gameState}
+        actions={actions}
+      />
+    );
+  }
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen px-4 gap-6">
@@ -28,19 +58,19 @@ const LobbyPage = () => {
         <div className="w-full">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-semibold text-text-muted">Players</span>
-            <span className="text-xs text-text-muted">{mockPlayers.length} joined</span>
+            <span className="text-xs text-text-muted">{gameState.players.length} joined</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {mockPlayers.map((player, i) => (
+            {gameState.players.map((player, i) => (
               <div
                 key={i}
                 className={`rounded-lg px-3 py-2 text-sm font-medium text-center ${
-                  player === 'You'
+                  player.nickname === nickname
                     ? 'bg-primary/15 text-primary border border-primary/30'
                     : 'bg-background border border-border text-text-muted'
                 }`}
               >
-                {player === 'You' ? nickname : player}
+                {player.nickname}
               </div>
             ))}
           </div>

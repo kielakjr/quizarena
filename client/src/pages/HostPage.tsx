@@ -1,21 +1,82 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useSearchParams, Link, useNavigate } from 'react-router';
+import { useAuth } from '../context/AuthContext';
+import { useGameSocket } from '../hooks/useGameSocket';
 import api from '../api/axios';
 import type { Quiz } from '../types/quiz';
 
-const mockPlayers = [
-  { nickname: 'Alex' },
-  { nickname: 'Maya' },
-  { nickname: 'Sam' },
-  { nickname: 'Jordan' },
-];
+const HostTimerBar = ({ timeLimit, questionIndex }: { timeLimit: number; questionIndex: number }) => {
+  const [percent, setPercent] = useState(100);
+  const [timeLeft, setTimeLeft] = useState(timeLimit);
+
+  useEffect(() => {
+    const duration = timeLimit * 1000;
+    const start = Date.now();
+    setPercent(100);
+    setTimeLeft(timeLimit);
+
+    const frame = () => {
+      const elapsed = Date.now() - start;
+      const remaining = Math.max(0, 1 - elapsed / duration);
+      setPercent(remaining * 100);
+      setTimeLeft(Math.ceil((duration - elapsed) / 1000));
+      if (remaining > 0) rafId = requestAnimationFrame(frame);
+    };
+
+    let rafId = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(rafId);
+  }, [timeLimit, questionIndex]);
+
+  const color = percent <= 20 ? 'bg-wrong' : percent <= 50 ? 'bg-accent' : 'bg-primary';
+
+  return (
+    <div className="w-full flex items-center gap-3">
+      <div className="flex-1 h-2 bg-border rounded-full overflow-hidden">
+        <div className={`h-full ${color} transition-none rounded-full`} style={{ width: `${percent}%` }} />
+      </div>
+      <span className={`text-sm font-bold tabular-nums w-8 text-right ${timeLeft <= 5 ? 'text-wrong' : 'text-text-muted'}`}>
+        {timeLeft}s
+      </span>
+    </div>
+  );
+};
+
+const CountdownCircle = ({ seconds }: { seconds: number }) => {
+  const [count, setCount] = useState(seconds);
+
+  useEffect(() => {
+    setCount(seconds);
+    const interval = setInterval(() => {
+      setCount((c) => {
+        if (c <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [seconds]);
+
+  return (
+    <div className="w-28 h-28 rounded-full border-4 border-primary flex items-center justify-center animate-pulse">
+      <span className="text-6xl font-extrabold text-primary">{count || ''}</span>
+    </div>
+  );
+};
 
 const HostPage = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { token } = useAuth();
+  const { gameState, actions } = useGameSocket();
+
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
-  const [started, setStarted] = useState(false);
-  const [currentQ, setCurrentQ] = useState(0);
+  const [pin, setPin] = useState(searchParams.get('pin') ?? '');
+  const [creating, setCreating] = useState(false);
+  const joinedAsHost = useRef(false);
 
   useEffect(() => {
     api.get(`/quizzes/${id}`)
@@ -23,6 +84,26 @@ const HostPage = () => {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (!quiz || pin || creating) return;
+    setCreating(true);
+    api.post('/games/create', { quizId: id })
+      .then((res) => {
+        const newPin = res.data.pin;
+        setPin(newPin);
+        navigate(`/host/${id}?pin=${newPin}`, { replace: true });
+      })
+      .catch(() => {})
+      .finally(() => setCreating(false));
+  }, [quiz, pin, creating, id, navigate]);
+
+  useEffect(() => {
+    if (pin && token && !joinedAsHost.current) {
+      joinedAsHost.current = true;
+      actions.joinAsHost(pin, token);
+    }
+  }, [pin, token, actions]);
 
   if (loading) {
     return <p className="text-text-muted animate-pulse">Loading quiz...</p>;
@@ -37,56 +118,153 @@ const HostPage = () => {
     );
   }
 
-  if (started) {
-    const question = quiz.questions[currentQ];
-    const isLast = currentQ + 1 >= quiz.questions.length;
+  if (gameState.error) {
+    return (
+      <div className="flex flex-col items-center gap-4 pt-16">
+        <p className="text-wrong">{gameState.error}</p>
+        <Link to="/dashboard" className="text-primary hover:underline text-sm">Back to dashboard</Link>
+      </div>
+    );
+  }
+
+  if (gameState.phase === 'countdown') {
+    return (
+      <div className="flex flex-col items-center justify-center gap-6 pt-24">
+        <p className="text-text-muted text-lg font-medium">Game starting...</p>
+        <CountdownCircle seconds={gameState.countdownSeconds} />
+      </div>
+    );
+  }
+
+  if (gameState.phase === 'finished') {
+    return (
+      <div className="flex flex-col items-center gap-6 pt-8">
+        <h1 className="text-2xl font-bold">Game Over!</h1>
+        <div className="w-full max-w-xl bg-surface border border-border rounded-2xl p-6">
+          <h2 className="font-semibold mb-4">Final Leaderboard</h2>
+          <div className="space-y-2">
+            {gameState.leaderboard.map((entry, i) => (
+              <div
+                key={entry.nickname}
+                className="flex items-center justify-between bg-background border border-border rounded-lg px-4 py-3"
+              >
+                <span className="font-medium">
+                  <span className={`mr-2 font-bold ${i === 0 ? 'text-accent' : 'text-text-muted'}`}>#{i + 1}</span>
+                  {entry.nickname}
+                </span>
+                <span className="font-bold text-accent">{entry.score} pts</span>
+              </div>
+            ))}
+          </div>
+          <Link
+            to="/dashboard"
+            className="block text-center mt-6 bg-primary hover:bg-primary-hover text-white font-semibold px-6 py-2.5 rounded-lg transition"
+          >
+            Back to dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (gameState.phase === 'leaderboard') {
+    return (
+      <div className="flex flex-col items-center gap-6 pt-8">
+        <h1 className="text-xl font-bold">Leaderboard</h1>
+        <div className="w-full max-w-xl bg-surface border border-border rounded-2xl p-6">
+          <div className="space-y-2 mb-6">
+            {gameState.leaderboard.map((entry, i) => (
+              <div
+                key={entry.nickname}
+                className="flex items-center justify-between bg-background border border-border rounded-lg px-4 py-3"
+              >
+                <span className="font-medium">
+                  <span className={`mr-2 font-bold ${i === 0 ? 'text-accent' : 'text-text-muted'}`}>#{i + 1}</span>
+                  {entry.nickname}
+                </span>
+                <span className="font-bold text-accent">{entry.score}</span>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => actions.showNextQuestion(pin)}
+            className="w-full bg-primary hover:bg-primary-hover text-white font-semibold px-6 py-2.5 rounded-lg transition cursor-pointer"
+          >
+            Next question
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (gameState.phase === 'playing' || gameState.phase === 'results') {
+    const { question, results } = gameState;
+    if (!question) return null;
 
     return (
       <div className="flex flex-col items-center gap-6">
         <div className="flex items-center justify-between w-full">
           <h1 className="text-xl font-bold">{quiz.title}</h1>
           <span className="text-sm text-text-muted">
-            Question {currentQ + 1} of {quiz.questions.length}
+            Question {question.index + 1} of {question.total}
           </span>
         </div>
 
+        {gameState.phase === 'playing' && (
+          <HostTimerBar timeLimit={question.timeLimit} questionIndex={question.index} />
+        )}
+
         <div className="w-full bg-surface border border-border rounded-xl p-8 flex flex-col items-center gap-6">
           <div className="text-center">
-            <p className="text-text-muted text-xs mb-1">{question.timeLimit}s &middot; {question.points} pts</p>
+            <p className="text-text-muted text-xs mb-1">{question.points} pts</p>
             <h2 className="text-xl font-semibold">{question.text}</h2>
           </div>
 
-          <div className="w-full grid grid-cols-2 gap-3">
-            {question.options.map((opt) => (
-              <div
-                key={opt._id}
-                className={`rounded-lg p-3 flex items-center justify-between ${
-                  opt.isCorrect
-                    ? 'bg-correct/10 border border-correct/30'
-                    : 'bg-background border border-border'
-                }`}
-              >
-                <span className="text-sm font-medium">{opt.text}</span>
-                {opt.isCorrect && (
-                  <span className="text-xs text-correct font-semibold">Correct</span>
-                )}
-              </div>
-            ))}
-          </div>
+          {gameState.phase === 'playing' && (
+            <div className="text-sm text-text-muted">
+              {gameState.answeredCount} / {gameState.totalPlayers || gameState.players.length} answered
+            </div>
+          )}
 
-          <button
-            onClick={() => {
-              if (isLast) {
-                setStarted(false);
-                setCurrentQ(0);
-              } else {
-                setCurrentQ((c) => c + 1);
-              }
-            }}
-            className="bg-primary hover:bg-primary-hover text-white font-semibold px-6 py-2.5 rounded-lg transition cursor-pointer"
-          >
-            {isLast ? 'End game' : 'Next question'}
-          </button>
+          {results && (
+            <div className="w-full grid grid-cols-2 gap-3">
+              {question.options.map((opt, i) => (
+                <div
+                  key={opt._id}
+                  className={`rounded-lg p-3 flex items-center justify-between ${
+                    i === results.correctIndex
+                      ? 'bg-correct/10 border border-correct/30'
+                      : 'bg-background border border-border'
+                  }`}
+                >
+                  <span className="text-sm font-medium">{opt.text}</span>
+                  <span className="text-xs text-text-muted">{results.distribution[i]} votes</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!results && (
+            <div className="w-full grid grid-cols-2 gap-3">
+              {question.options.map((opt) => (
+                <div
+                  key={opt._id}
+                  className="bg-background border border-border rounded-lg p-3"
+                >
+                  <span className="text-sm font-medium">{opt.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {results && (
+            <button
+              onClick={() => actions.nextQuestion(pin)}
+              className="bg-primary hover:bg-primary-hover text-white font-semibold px-6 py-2.5 rounded-lg transition cursor-pointer"
+            >
+              {question.index + 1 >= question.total ? 'Show final results' : 'Next'}
+            </button>
+          )}
         </div>
       </div>
     );
@@ -101,22 +279,33 @@ const HostPage = () => {
         </p>
       </div>
 
+      {pin && (
+        <div className="bg-surface border border-border rounded-2xl px-8 py-4 text-center">
+          <span className="text-text-muted text-sm block mb-1">Game PIN</span>
+          <span className="font-mono text-4xl font-extrabold text-accent tracking-widest">{pin}</span>
+        </div>
+      )}
+
       <div className="w-full max-w-xl bg-surface border border-border rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold">Players</h2>
-          <span className="text-sm text-text-muted">{mockPlayers.length} joined</span>
+          <span className="text-sm text-text-muted">{gameState.players.length} joined</span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
-          {mockPlayers.map((player, i) => (
-            <div
-              key={i}
-              className="bg-background border border-border rounded-lg px-3 py-2 text-center text-sm font-medium text-text"
-            >
-              {player.nickname}
-            </div>
-          ))}
-        </div>
+        {gameState.players.length === 0 ? (
+          <p className="text-text-muted text-sm text-center py-4">Waiting for players to join...</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+            {gameState.players.map((player, i) => (
+              <div
+                key={i}
+                className="bg-background border border-border rounded-lg px-3 py-2 text-center text-sm font-medium text-text"
+              >
+                {player.nickname}
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="flex items-center justify-between">
           <Link
@@ -126,8 +315,9 @@ const HostPage = () => {
             Cancel
           </Link>
           <button
-            onClick={() => setStarted(true)}
-            className="bg-correct hover:brightness-110 text-background font-bold px-8 py-3 rounded-lg transition cursor-pointer text-lg"
+            onClick={() => actions.startGame(pin)}
+            disabled={gameState.players.length === 0}
+            className="bg-correct hover:brightness-110 disabled:opacity-40 text-background font-bold px-8 py-3 rounded-lg transition cursor-pointer text-lg"
           >
             Start game!
           </button>

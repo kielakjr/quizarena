@@ -1,4 +1,5 @@
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import { BrowserRouter, Route, Routes } from 'react-router';
 
 import Landing from './pages/Landing';
@@ -17,22 +18,24 @@ const App = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/lobby/:pin" element={<LobbyPage />} />
-          <Route path="/play/:id" element={<QuizPlayPage />} />
+        <SocketProvider>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/lobby/:pin" element={<LobbyPage />} />
+            <Route path="/play/:id" element={<QuizPlayPage />} />
 
-          <Route element={<ProtectedRoute />}>
-            <Route element={<Layout />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/create" element={<CreateQuizPage />} />
-              <Route path="/edit/:id" element={<EditQuizPage />} />
-              <Route path="/host/:id" element={<HostPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<Layout />}>
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/create" element={<CreateQuizPage />} />
+                <Route path="/edit/:id" element={<EditQuizPage />} />
+                <Route path="/host/:id" element={<HostPage />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
+          </Routes>
+        </SocketProvider>
       </AuthProvider>
     </BrowserRouter>
   );
