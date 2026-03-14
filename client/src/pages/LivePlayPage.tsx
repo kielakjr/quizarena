@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import type { GameState } from '../hooks/useGameSocket';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+
 interface GameActions {
   submitAnswer: (pin: string, optionIndex: number) => void;
 }
@@ -257,7 +259,15 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
           <span className="text-xs text-text-muted">{question.points} pts</span>
         </div>
 
-        <h2 className="text-xl sm:text-2xl font-bold text-center mb-8">{question.text}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-center mb-4">{question.text}</h2>
+
+        {question.imageUrl && (
+          <img
+            src={`${API_URL}${question.imageUrl}`}
+            alt="Question"
+            className="max-h-48 rounded-xl object-contain mx-auto mb-4"
+          />
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-auto">
           {question.options.map((option, i) => {

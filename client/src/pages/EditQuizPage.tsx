@@ -9,7 +9,11 @@ interface QuestionForm {
   options: Option[];
   timeLimit: number;
   points: number;
+  image: File | null;
+  existingImageUrl: string | null;
 }
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5003';
 
 const emptyQuestion = (id: number): QuestionForm => ({
   id,
@@ -22,6 +26,8 @@ const emptyQuestion = (id: number): QuestionForm => ({
   ],
   timeLimit: 20,
   points: 1000,
+  image: null,
+  existingImageUrl: null,
 });
 
 const EditQuizPage = () => {
@@ -34,6 +40,9 @@ const EditQuizPage = () => {
   const [fetchError, setFetchError] = useState('');
   const [defaultTitle, setDefaultTitle] = useState('');
   const [defaultDescription, setDefaultDescription] = useState('');
+  const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [existingCoverImage, setExistingCoverImage] = useState<string | null>(null);
 
   useEffect(() => {
     api.get(`/quizzes/${id}`)
@@ -42,13 +51,19 @@ const EditQuizPage = () => {
         setDefaultTitle(quiz.title);
         setDefaultDescription(quiz.description ?? '');
         setIsPublic(quiz.isPublic);
+        if (quiz.coverImage) {
+          setExistingCoverImage(quiz.coverImage);
+          setCoverPreview(`${API_URL}${quiz.coverImage}`);
+        }
         setQuestions(
-          quiz.questions.map((q: { text: string; options: Option[]; timeLimit: number; points: number }, i: number) => ({
+          quiz.questions.map((q: { text: string; imageUrl?: string; options: Option[]; timeLimit: number; points: number }, i: number) => ({
             id: i + 1,
             text: q.text,
             options: q.options.map((o: Option) => ({ text: o.text, isCorrect: o.isCorrect })),
             timeLimit: q.timeLimit,
             points: q.points,
+            image: null,
+            existingImageUrl: q.imageUrl || null,
           })),
         );
       })
@@ -61,26 +76,50 @@ const EditQuizPage = () => {
       const title = formData.get('title') as string;
       const description = formData.get('description') as string;
 
-      const payload = {
-        title,
-        description,
-        isPublic,
-        questions: questions.map((q) => ({
-          text: q.text,
-          options: q.options,
-          timeLimit: q.timeLimit,
-          points: q.points,
-        })),
-      };
+      const data = new FormData();
+      data.append('title', title);
+      data.append('description', description);
+      data.append('isPublic', String(isPublic));
+      data.append(
+        'questions',
+        JSON.stringify(
+          questions.map((q) => ({
+            text: q.text,
+            options: q.options,
+            timeLimit: q.timeLimit,
+            points: q.points,
+            imageUrl: q.existingImageUrl || undefined,
+          })),
+        ),
+      );
+
+      if (coverImage) {
+        data.append('coverImage', coverImage);
+      }
+
+      const questionImageMap: Record<string, number> = {};
+      let fileIndex = 0;
+      for (let i = 0; i < questions.length; i++) {
+        if (questions[i].image) {
+          data.append('questionImages', questions[i].image!);
+          questionImageMap[String(fileIndex)] = i;
+          fileIndex++;
+        }
+      }
+      if (fileIndex > 0) {
+        data.append('questionImageMap', JSON.stringify(questionImageMap));
+      }
 
       try {
-        await api.put(`/quizzes/${id}`, payload);
+        await api.put(`/quizzes/${id}`, data, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
         navigate('/dashboard');
         return null;
       } catch (err: unknown) {
         if (err && typeof err === 'object' && 'response' in err) {
-          const axiosErr = err as { response?: { data?: { message?: string; errors?: { message: string }[] } } };
-          return axiosErr.response?.data?.errors?.[0]?.message ?? axiosErr.response?.data?.message ?? 'Failed to update quiz';
+          const axiosErr = err as { response?: { data?: { message?: string; errors?: string[] } } };
+          return axiosErr.response?.data?.errors?.[0] ?? axiosErr.response?.data?.message ?? 'Failed to update quiz';
         }
         return 'Something went wrong';
       }
@@ -121,6 +160,30 @@ const EditQuizPage = () => {
           : q,
       ),
     );
+  };
+
+  const handleCoverImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setCoverImage(file);
+    setExistingCoverImage(null);
+    if (file) {
+      setCoverPreview(URL.createObjectURL(file));
+    } else {
+      setCoverPreview(null);
+    }
+  };
+
+  const handleQuestionImage = (questionId: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setQuestions((prev) =>
+      prev.map((q) => (q.id === questionId ? { ...q, image: file, existingImageUrl: null } : q)),
+    );
+  };
+
+  const getQuestionImagePreview = (q: QuestionForm): string | null => {
+    if (q.image) return URL.createObjectURL(q.image);
+    if (q.existingImageUrl) return `${API_URL}${q.existingImageUrl}`;
+    return null;
   };
 
   const inputClass =
@@ -181,6 +244,40 @@ const EditQuizPage = () => {
               className={`${inputClass} resize-none`}
             />
           </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm text-text-muted">Cover image</label>
+            <div className="flex items-center gap-4">
+              {coverPreview && (
+                <img
+                  src={coverPreview}
+                  alt="Cover preview"
+                  className="w-20 h-20 object-cover rounded-lg border border-border"
+                />
+              )}
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleCoverImage}
+                  className="hidden"
+                />
+                <span className="text-sm border border-border hover:border-primary rounded-lg px-3 py-1.5 text-text-muted hover:text-primary transition">
+                  {coverPreview ? 'Change image' : 'Upload image'}
+                </span>
+              </label>
+              {coverPreview && (
+                <button
+                  type="button"
+                  onClick={() => { setCoverImage(null); setCoverPreview(null); setExistingCoverImage(null); }}
+                  className="text-xs text-text-muted hover:text-wrong transition cursor-pointer"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -193,85 +290,118 @@ const EditQuizPage = () => {
         </div>
 
         <div className="flex flex-col gap-4">
-          {questions.map((q, qi) => (
-            <div
-              key={q.id}
-              className="bg-surface border border-border rounded-xl p-6 flex flex-col gap-4"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-primary">Question {qi + 1}</span>
-                {questions.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeQuestion(q.id)}
-                    className="text-xs text-text-muted hover:text-wrong transition cursor-pointer"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-
-              <input
-                type="text"
-                required
-                value={q.text}
-                onChange={(e) => updateQuestion(q.id, 'text', e.target.value)}
-                placeholder="Enter your question"
-                className={inputClass}
-              />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {q.options.map((option, oi) => (
-                  <div key={oi} className="flex items-center gap-2">
+          {questions.map((q, qi) => {
+            const imagePreview = getQuestionImagePreview(q);
+            return (
+              <div
+                key={q.id}
+                className="bg-surface border border-border rounded-xl p-6 flex flex-col gap-4"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-primary">Question {qi + 1}</span>
+                  {questions.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => setCorrectAnswer(q.id, oi)}
-                      className={`shrink-0 w-5 h-5 rounded-full border-2 transition cursor-pointer ${
-                        option.isCorrect
-                          ? 'border-correct bg-correct/20'
-                          : 'border-border hover:border-text-muted'
-                      }`}
-                      title="Mark as correct answer"
+                      onClick={() => removeQuestion(q.id)}
+                      className="text-xs text-text-muted hover:text-wrong transition cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+
+                <input
+                  type="text"
+                  required
+                  value={q.text}
+                  onChange={(e) => updateQuestion(q.id, 'text', e.target.value)}
+                  placeholder="Enter your question"
+                  className={inputClass}
+                />
+
+                <div className="flex items-center gap-3">
+                  {imagePreview && (
+                    <img
+                      src={imagePreview}
+                      alt="Question image"
+                      className="w-16 h-16 object-cover rounded-lg border border-border"
                     />
+                  )}
+                  <label className="cursor-pointer">
                     <input
-                      type="text"
-                      required
-                      value={option.text}
-                      onChange={(e) => updateOptionText(q.id, oi, e.target.value)}
-                      placeholder={`Option ${oi + 1}`}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={(e) => handleQuestionImage(q.id, e)}
+                      className="hidden"
+                    />
+                    <span className="text-xs border border-border hover:border-primary rounded-lg px-2.5 py-1 text-text-muted hover:text-primary transition">
+                      {imagePreview ? 'Change image' : 'Add image'}
+                    </span>
+                  </label>
+                  {imagePreview && (
+                    <button
+                      type="button"
+                      onClick={() => setQuestions((prev) => prev.map((qq) => (qq.id === q.id ? { ...qq, image: null, existingImageUrl: null } : qq)))}
+                      className="text-xs text-text-muted hover:text-wrong transition cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {q.options.map((option, oi) => (
+                    <div key={oi} className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCorrectAnswer(q.id, oi)}
+                        className={`shrink-0 w-5 h-5 rounded-full border-2 transition cursor-pointer ${
+                          option.isCorrect
+                            ? 'border-correct bg-correct/20'
+                            : 'border-border hover:border-text-muted'
+                        }`}
+                        title="Mark as correct answer"
+                      />
+                      <input
+                        type="text"
+                        required
+                        value={option.text}
+                        onChange={(e) => updateOptionText(q.id, oi, e.target.value)}
+                        placeholder={`Option ${oi + 1}`}
+                        className={inputClass}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="flex flex-col gap-1 flex-1">
+                    <label className="text-xs text-text-muted">Time limit (s)</label>
+                    <input
+                      type="number"
+                      min={5}
+                      max={60}
+                      value={q.timeLimit}
+                      onChange={(e) => updateQuestion(q.id, 'timeLimit', Number(e.target.value))}
                       className={inputClass}
                     />
                   </div>
-                ))}
-              </div>
-
-              <div className="flex gap-4">
-                <div className="flex flex-col gap-1 flex-1">
-                  <label className="text-xs text-text-muted">Time limit (s)</label>
-                  <input
-                    type="number"
-                    min={5}
-                    max={60}
-                    value={q.timeLimit}
-                    onChange={(e) => updateQuestion(q.id, 'timeLimit', Number(e.target.value))}
-                    className={inputClass}
-                  />
-                </div>
-                <div className="flex flex-col gap-1 flex-1">
-                  <label className="text-xs text-text-muted">Points</label>
-                  <input
-                    type="number"
-                    min={100}
-                    max={2000}
-                    step={100}
-                    value={q.points}
-                    onChange={(e) => updateQuestion(q.id, 'points', Number(e.target.value))}
-                    className={inputClass}
-                  />
+                  <div className="flex flex-col gap-1 flex-1">
+                    <label className="text-xs text-text-muted">Points</label>
+                    <input
+                      type="number"
+                      min={100}
+                      max={2000}
+                      step={100}
+                      value={q.points}
+                      onChange={(e) => updateQuestion(q.id, 'points', Number(e.target.value))}
+                      className={inputClass}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <button

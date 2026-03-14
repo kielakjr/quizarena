@@ -27,6 +27,7 @@ function sendQuestion(io: Server, game: GameSession) {
   io.to(game.pin).emit('question:show', {
     index: game.currentQuestionIndex,
     text: q.text,
+    imageUrl: q.imageUrl || null,
     options: q.options.map((o) => ({ _id: o._id.toString(), text: o.text })),
     timeLimit: q.timeLimit,
     points: q.points,

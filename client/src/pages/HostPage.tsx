@@ -5,6 +5,8 @@ import { useGameSocket } from '../hooks/useGameSocket';
 import api from '../api/axios';
 import type { Quiz } from '../types/quiz';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+
 const HostTimerBar = ({ timeLimit, questionIndex }: { timeLimit: number; questionIndex: number }) => {
   const [percent, setPercent] = useState(100);
   const [timeLeft, setTimeLeft] = useState(timeLimit);
@@ -228,6 +230,14 @@ const HostPage = () => {
             <p className="text-text-muted text-xs mb-1">{question.points} pts</p>
             <h2 className="text-xl font-semibold">{question.text}</h2>
           </div>
+
+          {question.imageUrl && (
+            <img
+              src={`${API_URL}${question.imageUrl}`}
+              alt="Question"
+              className="max-h-56 rounded-xl object-contain"
+            />
+          )}
 
           {gameState.phase === 'playing' && (
             <div className="text-sm text-text-muted">

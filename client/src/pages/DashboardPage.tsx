@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import type { QuizSummary } from '../types/quiz';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+
 const DashboardPage = () => {
   const { user } = useAuth();
   const [quizzes, setQuizzes] = useState<QuizSummary[]>([]);
@@ -87,7 +89,19 @@ const DashboardPage = () => {
                 key={quiz._id}
                 className="bg-surface border border-border rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-primary/50 transition"
               >
-                <div className="flex flex-col gap-1">
+                <div className="flex items-start gap-4">
+                  {quiz.coverImage ? (
+                    <img
+                      src={`${API_URL}${quiz.coverImage}`}
+                      alt={quiz.title}
+                      className="w-14 h-14 object-cover rounded-lg border border-border shrink-0"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 bg-background border border-border rounded-lg flex items-center justify-center shrink-0">
+                      <span className="text-text-muted text-lg">?</span>
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold">{quiz.title}</h3>
                     {quiz.isPublic ? (
@@ -99,6 +113,7 @@ const DashboardPage = () => {
                   <div className="flex items-center gap-4 text-sm text-text-muted">
                     {quiz.description && <span>{quiz.description}</span>}
                     <span>{quiz.timesPlayed} plays</span>
+                  </div>
                   </div>
                 </div>
 

@@ -15,6 +15,7 @@ export interface LeaderboardEntry {
 export interface QuestionData {
   index: number;
   text: string;
+  imageUrl: string | null;
   options: { _id: string; text: string }[];
   timeLimit: number;
   points: number;

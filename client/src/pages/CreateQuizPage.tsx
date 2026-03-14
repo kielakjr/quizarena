@@ -9,6 +9,7 @@ interface QuestionForm {
   options: Option[];
   timeLimit: number;
   points: number;
+  image: File | null;
 }
 
 interface FormState {
@@ -27,37 +28,63 @@ const emptyQuestion = (id: number): QuestionForm => ({
   ],
   timeLimit: 20,
   points: 1000,
+  image: null,
 });
 
 const CreateQuizPage = () => {
   const navigate = useNavigate();
   const [questions, setQuestions] = useState<QuestionForm[]>([emptyQuestion(1)]);
   const [isPublic, setIsPublic] = useState(true);
+  const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
 
   const [state, submitAction, isPending] = useActionState<FormState, FormData>(
     async (_prev, formData) => {
       const title = formData.get('title') as string;
       const description = formData.get('description') as string;
 
-      const payload = {
-        title,
-        description,
-        isPublic,
-        questions: questions.map((q) => ({
-          text: q.text,
-          options: q.options,
-          timeLimit: q.timeLimit,
-          points: q.points,
-        })),
-      };
+      const data = new FormData();
+      data.append('title', title);
+      data.append('description', description);
+      data.append('isPublic', String(isPublic));
+      data.append(
+        'questions',
+        JSON.stringify(
+          questions.map((q) => ({
+            text: q.text,
+            options: q.options,
+            timeLimit: q.timeLimit,
+            points: q.points,
+          })),
+        ),
+      );
+
+      if (coverImage) {
+        data.append('coverImage', coverImage);
+      }
+
+      const questionImageMap: Record<string, number> = {};
+      let fileIndex = 0;
+      for (let i = 0; i < questions.length; i++) {
+        if (questions[i].image) {
+          data.append('questionImages', questions[i].image!);
+          questionImageMap[String(fileIndex)] = i;
+          fileIndex++;
+        }
+      }
+      if (fileIndex > 0) {
+        data.append('questionImageMap', JSON.stringify(questionImageMap));
+      }
 
       try {
-        const res = await api.post('/quizzes', payload);
+        const res = await api.post('/quizzes', data, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
         return { error: null, createdId: res.data.quiz._id };
       } catch (err: unknown) {
         if (err && typeof err === 'object' && 'response' in err) {
-          const axiosErr = err as { response?: { data?: { message?: string; errors?: { message: string }[] } } };
-          const msg = axiosErr.response?.data?.errors?.[0]?.message ?? axiosErr.response?.data?.message ?? 'Failed to create quiz';
+          const axiosErr = err as { response?: { data?: { message?: string; errors?: string[] } } };
+          const msg = axiosErr.response?.data?.errors?.[0] ?? axiosErr.response?.data?.message ?? 'Failed to create quiz';
           return { error: msg, createdId: null };
         }
         return { error: 'Something went wrong', createdId: null };
@@ -98,6 +125,23 @@ const CreateQuizPage = () => {
           ? { ...q, options: q.options.map((o, i) => ({ ...o, isCorrect: i === optionIndex })) }
           : q,
       ),
+    );
+  };
+
+  const handleCoverImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setCoverImage(file);
+    if (file) {
+      setCoverPreview(URL.createObjectURL(file));
+    } else {
+      setCoverPreview(null);
+    }
+  };
+
+  const handleQuestionImage = (questionId: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setQuestions((prev) =>
+      prev.map((q) => (q.id === questionId ? { ...q, image: file } : q)),
     );
   };
 
@@ -169,6 +213,40 @@ const CreateQuizPage = () => {
               className={`${inputClass} resize-none`}
             />
           </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm text-text-muted">Cover image</label>
+            <div className="flex items-center gap-4">
+              {coverPreview && (
+                <img
+                  src={coverPreview}
+                  alt="Cover preview"
+                  className="w-20 h-20 object-cover rounded-lg border border-border"
+                />
+              )}
+              <label className="flex items-center gap-2 text-sm text-primary hover:text-primary-hover cursor-pointer transition">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleCoverImage}
+                  className="hidden"
+                />
+                <span className="border border-border hover:border-primary rounded-lg px-3 py-1.5 text-text-muted hover:text-primary transition">
+                  {coverImage ? 'Change image' : 'Upload image'}
+                </span>
+              </label>
+              {coverImage && (
+                <button
+                  type="button"
+                  onClick={() => { setCoverImage(null); setCoverPreview(null); }}
+                  className="text-xs text-text-muted hover:text-wrong transition cursor-pointer"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -207,6 +285,36 @@ const CreateQuizPage = () => {
                 placeholder="Enter your question"
                 className={inputClass}
               />
+
+              <div className="flex items-center gap-3">
+                {q.image && (
+                  <img
+                    src={URL.createObjectURL(q.image)}
+                    alt="Question image"
+                    className="w-16 h-16 object-cover rounded-lg border border-border"
+                  />
+                )}
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    onChange={(e) => handleQuestionImage(q.id, e)}
+                    className="hidden"
+                  />
+                  <span className="text-xs border border-border hover:border-primary rounded-lg px-2.5 py-1 text-text-muted hover:text-primary transition">
+                    {q.image ? 'Change image' : 'Add image'}
+                  </span>
+                </label>
+                {q.image && (
+                  <button
+                    type="button"
+                    onClick={() => setQuestions((prev) => prev.map((qq) => (qq.id === q.id ? { ...qq, image: null } : qq)))}
+                    className="text-xs text-text-muted hover:text-wrong transition cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {q.options.map((option, oi) => (
