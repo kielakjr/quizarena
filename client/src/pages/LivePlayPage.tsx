@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { motion, AnimatePresence } from 'framer-motion';
+import { imageUrl } from '../api/axios';
 import type { GameState } from '../hooks/useGameSocket';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5003';
 
 interface GameActions {
   submitAnswer: (pin: string, optionIndex: number) => void;
@@ -83,14 +83,32 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
   if (gameState.phase === 'countdown') {
     return (
       <main className="flex items-center justify-center min-h-screen px-4">
-        <div className="flex flex-col items-center gap-4">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center gap-4"
+        >
           <p className="text-text-muted text-lg font-medium">Get ready!</p>
-          <div className="w-28 h-28 rounded-full border-4 border-primary flex items-center justify-center animate-pulse">
-            <span className="text-6xl font-extrabold text-primary">
-              {countdown || ''}
-            </span>
-          </div>
-        </div>
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200 }}
+            className="w-28 h-28 rounded-full border-4 border-primary flex items-center justify-center"
+          >
+            <AnimatePresence mode="popLayout">
+              <motion.span
+                key={countdown}
+                initial={{ scale: 1.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.5, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="text-6xl font-extrabold text-primary"
+              >
+                {countdown || ''}
+              </motion.span>
+            </AnimatePresence>
+          </motion.div>
+        </motion.div>
       </main>
     );
   }
@@ -98,14 +116,32 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
   if (gameState.phase === 'questionCountdown') {
     return (
       <main className="flex items-center justify-center min-h-screen px-4">
-        <div className="flex flex-col items-center gap-4">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center gap-4"
+        >
           <p className="text-text-muted text-lg font-medium">Next question in...</p>
-          <div className="w-28 h-28 rounded-full border-4 border-primary flex items-center justify-center animate-pulse">
-            <span className="text-6xl font-extrabold text-primary">
-              {countdown || ''}
-            </span>
-          </div>
-        </div>
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200 }}
+            className="w-28 h-28 rounded-full border-4 border-primary flex items-center justify-center"
+          >
+            <AnimatePresence mode="popLayout">
+              <motion.span
+                key={countdown}
+                initial={{ scale: 1.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.5, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="text-6xl font-extrabold text-primary"
+              >
+                {countdown || ''}
+              </motion.span>
+            </AnimatePresence>
+          </motion.div>
+        </motion.div>
       </main>
     );
   }
@@ -116,20 +152,34 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
 
     return (
       <main className="flex items-center justify-center min-h-screen px-4">
-        <div className="w-full max-w-md bg-surface border border-border rounded-2xl p-8 flex flex-col items-center gap-5 shadow-lg shadow-primary/10">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md bg-surface border border-border rounded-2xl p-8 flex flex-col items-center gap-5 shadow-lg shadow-primary/10"
+        >
           <h1 className="text-2xl font-bold">Game Over!</h1>
 
           <div className="flex flex-col items-center gap-1">
             <span className="text-text-muted text-sm">{nickname}</span>
-            <div className="text-5xl font-extrabold text-accent">#{myRank}</div>
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', delay: 0.2 }}
+              className="text-5xl font-extrabold text-accent"
+            >
+              #{myRank}
+            </motion.div>
             <span className="text-lg font-semibold text-primary">{myEntry?.score ?? 0} pts</span>
           </div>
 
           <div className="w-full space-y-2">
             <h3 className="text-sm font-semibold text-text-muted">Leaderboard</h3>
             {gameState.leaderboard.map((entry, i) => (
-              <div
+              <motion.div
                 key={entry.nickname}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 + i * 0.08 }}
                 className={`flex items-center justify-between px-4 py-2 rounded-lg ${
                   entry.nickname === nickname
                     ? 'bg-primary/15 border border-primary/30'
@@ -141,7 +191,7 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
                   {entry.nickname}
                 </span>
                 <span className="text-sm font-bold text-accent">{entry.score}</span>
-              </div>
+              </motion.div>
             ))}
           </div>
 
@@ -151,7 +201,7 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
           >
             Back to home
           </Link>
-        </div>
+        </motion.div>
       </main>
     );
   }
@@ -172,17 +222,36 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center px-4 gap-6">
-          <div className={`text-center ${results.correct ? 'text-correct' : 'text-wrong'}`}>
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 200 }}
+            className={`text-center ${results.correct ? 'text-correct' : 'text-wrong'}`}
+          >
             <div className="text-5xl font-extrabold mb-2">
               {results.correct ? 'Correct!' : 'Wrong!'}
             </div>
             {results.correct && (
-              <p className="text-lg font-semibold">+{results.pointsEarned} points</p>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-lg font-semibold"
+              >
+                +{results.pointsEarned} points
+              </motion.p>
             )}
             {(results.streak ?? 0) >= 2 && (
-              <p className="text-sm text-accent mt-1">{results.streak} streak!</p>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-sm text-accent mt-1"
+              >
+                {results.streak} streak!
+              </motion.p>
             )}
-          </div>
+          </motion.div>
 
           <p className="text-text-muted text-sm animate-pulse">Waiting for host...</p>
         </div>
@@ -193,12 +262,19 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
   if (gameState.phase === 'leaderboard') {
     return (
       <main className="flex items-center justify-center min-h-screen px-4">
-        <div className="w-full max-w-md flex flex-col items-center gap-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md flex flex-col items-center gap-6"
+        >
           <h2 className="text-xl font-bold">Leaderboard</h2>
           <div className="w-full space-y-2">
             {gameState.leaderboard.map((entry, i) => (
-              <div
+              <motion.div
                 key={entry.nickname}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.08 }}
                 className={`flex items-center justify-between px-4 py-3 rounded-lg ${
                   entry.nickname === nickname
                     ? 'bg-primary/15 border border-primary/30'
@@ -210,11 +286,11 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
                   {entry.nickname}
                 </span>
                 <span className="font-bold text-accent">{entry.score}</span>
-              </div>
+              </motion.div>
             ))}
           </div>
           <p className="text-text-muted text-sm animate-pulse">Next question coming up...</p>
-        </div>
+        </motion.div>
       </main>
     );
   }
@@ -254,7 +330,12 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
         />
       </div>
 
-      <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full px-4 py-8">
+      <motion.div
+        key={`q-${question.index}`}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex-1 flex flex-col max-w-3xl mx-auto w-full px-4 py-8"
+      >
         <div className="text-center mb-2">
           <span className="text-xs text-text-muted">{question.points} pts</span>
         </div>
@@ -263,9 +344,9 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
 
         {question.imageUrl && (
           <img
-            src={`${API_URL}${question.imageUrl}`}
+            src={imageUrl(question.imageUrl)}
             alt="Question"
-            className="max-h-48 rounded-xl object-contain mx-auto mb-4"
+            className="max-h-72 w-full rounded-xl object-contain mx-auto mb-4"
           />
         )}
 
@@ -276,8 +357,10 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
             const disabled = gameState.answered;
 
             return (
-              <button
+              <motion.button
                 key={option._id}
+                whileHover={!disabled ? { scale: 1.02 } : undefined}
+                whileTap={!disabled ? { scale: 0.97 } : undefined}
                 onClick={() => handleAnswer(i)}
                 disabled={disabled}
                 className={`w-full text-left px-5 py-4 rounded-xl border-2 transition font-medium ${
@@ -292,17 +375,23 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
                   {String.fromCharCode(65 + i)}
                 </span>
                 {option.text}
-              </button>
+              </motion.button>
             );
           })}
         </div>
 
-        {gameState.answered && (
-          <div className="text-center mt-6">
-            <p className="text-text-muted text-sm animate-pulse">Answer submitted! Waiting for everyone...</p>
-          </div>
-        )}
-      </div>
+        <AnimatePresence>
+          {gameState.answered && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center mt-6"
+            >
+              <p className="text-text-muted text-sm animate-pulse">Answer submitted! Waiting for everyone...</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </main>
   );
 };

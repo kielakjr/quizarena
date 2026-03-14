@@ -1,6 +1,7 @@
 import { useState, useEffect, useActionState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import api from '../api/axios';
+import { motion, AnimatePresence } from 'framer-motion';
+import api, { imageUrl } from '../api/axios';
 import type { Option } from '../types/quiz';
 
 interface QuestionForm {
@@ -12,8 +13,6 @@ interface QuestionForm {
   image: File | null;
   existingImageUrl: string | null;
 }
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5003';
 
 const emptyQuestion = (id: number): QuestionForm => ({
   id,
@@ -53,7 +52,7 @@ const EditQuizPage = () => {
         setIsPublic(quiz.isPublic);
         if (quiz.coverImage) {
           setExistingCoverImage(quiz.coverImage);
-          setCoverPreview(`${API_URL}${quiz.coverImage}`);
+          setCoverPreview(imageUrl(quiz.coverImage));
         }
         setQuestions(
           quiz.questions.map((q: { text: string; imageUrl?: string; options: Option[]; timeLimit: number; points: number }, i: number) => ({
@@ -182,7 +181,7 @@ const EditQuizPage = () => {
 
   const getQuestionImagePreview = (q: QuestionForm): string | null => {
     if (q.image) return URL.createObjectURL(q.image);
-    if (q.existingImageUrl) return `${API_URL}${q.existingImageUrl}`;
+    if (q.existingImageUrl) return imageUrl(q.existingImageUrl);
     return null;
   };
 
@@ -195,30 +194,49 @@ const EditQuizPage = () => {
 
   if (fetchError) {
     return (
-      <div className="flex flex-col items-center gap-4 pt-16">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex flex-col items-center gap-4 pt-16"
+      >
         <p className="text-wrong">{fetchError}</p>
         <Link to="/dashboard" className="text-primary hover:underline text-sm">Back to dashboard</Link>
-      </div>
+      </motion.div>
     );
   }
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between mb-6"
+      >
         <h1 className="text-2xl font-bold">Edit quiz</h1>
         <Link to="/dashboard" className="text-sm text-text-muted hover:text-text transition">
           Cancel
         </Link>
-      </div>
+      </motion.div>
 
-      {error && (
-        <div className="bg-wrong/10 border border-wrong/30 text-wrong rounded-lg px-4 py-3 mb-6 text-sm">
-          {error}
-        </div>
-      )}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-wrong/10 border border-wrong/30 text-wrong rounded-lg px-4 py-3 mb-6 text-sm"
+          >
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <form action={submitAction} className="flex flex-col gap-6">
-        <div className="bg-surface border border-border rounded-xl p-6 flex flex-col gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-surface border border-border rounded-xl p-6 flex flex-col gap-4"
+        >
           <div className="flex flex-col gap-1.5">
             <label htmlFor="title" className="text-sm text-text-muted">Title</label>
             <input
@@ -248,13 +266,18 @@ const EditQuizPage = () => {
           <div className="flex flex-col gap-1.5">
             <label className="text-sm text-text-muted">Cover image</label>
             <div className="flex items-center gap-4">
-              {coverPreview && (
-                <img
-                  src={coverPreview}
-                  alt="Cover preview"
-                  className="w-20 h-20 object-cover rounded-lg border border-border"
-                />
-              )}
+              <AnimatePresence>
+                {coverPreview && (
+                  <motion.img
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    src={coverPreview}
+                    alt="Cover preview"
+                    className="w-20 h-20 object-cover rounded-lg border border-border"
+                  />
+                )}
+              </AnimatePresence>
               <label className="cursor-pointer">
                 <input
                   type="file"
@@ -287,142 +310,157 @@ const EditQuizPage = () => {
             />
             <span className="text-sm text-text-muted">Public quiz (visible to everyone)</span>
           </label>
-        </div>
+        </motion.div>
 
         <div className="flex flex-col gap-4">
-          {questions.map((q, qi) => {
-            const imagePreview = getQuestionImagePreview(q);
-            return (
-              <div
-                key={q.id}
-                className="bg-surface border border-border rounded-xl p-6 flex flex-col gap-4"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-primary">Question {qi + 1}</span>
-                  {questions.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeQuestion(q.id)}
-                      className="text-xs text-text-muted hover:text-wrong transition cursor-pointer"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-
-                <input
-                  type="text"
-                  required
-                  value={q.text}
-                  onChange={(e) => updateQuestion(q.id, 'text', e.target.value)}
-                  placeholder="Enter your question"
-                  className={inputClass}
-                />
-
-                <div className="flex items-center gap-3">
-                  {imagePreview && (
-                    <img
-                      src={imagePreview}
-                      alt="Question image"
-                      className="w-16 h-16 object-cover rounded-lg border border-border"
-                    />
-                  )}
-                  <label className="cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      onChange={(e) => handleQuestionImage(q.id, e)}
-                      className="hidden"
-                    />
-                    <span className="text-xs border border-border hover:border-primary rounded-lg px-2.5 py-1 text-text-muted hover:text-primary transition">
-                      {imagePreview ? 'Change image' : 'Add image'}
-                    </span>
-                  </label>
-                  {imagePreview && (
-                    <button
-                      type="button"
-                      onClick={() => setQuestions((prev) => prev.map((qq) => (qq.id === q.id ? { ...qq, image: null, existingImageUrl: null } : qq)))}
-                      className="text-xs text-text-muted hover:text-wrong transition cursor-pointer"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {q.options.map((option, oi) => (
-                    <div key={oi} className="flex items-center gap-2">
+          <AnimatePresence mode="popLayout">
+            {questions.map((q, qi) => {
+              const imgPreview = getQuestionImagePreview(q);
+              return (
+                <motion.div
+                  key={q.id}
+                  layout
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -100, transition: { duration: 0.2 } }}
+                  className="bg-surface border border-border rounded-xl p-6 flex flex-col gap-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-primary">Question {qi + 1}</span>
+                    {questions.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => setCorrectAnswer(q.id, oi)}
-                        className={`shrink-0 w-5 h-5 rounded-full border-2 transition cursor-pointer ${
-                          option.isCorrect
-                            ? 'border-correct bg-correct/20'
-                            : 'border-border hover:border-text-muted'
-                        }`}
-                        title="Mark as correct answer"
-                      />
+                        onClick={() => removeQuestion(q.id)}
+                        className="text-xs text-text-muted hover:text-wrong transition cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  <input
+                    type="text"
+                    required
+                    value={q.text}
+                    onChange={(e) => updateQuestion(q.id, 'text', e.target.value)}
+                    placeholder="Enter your question"
+                    className={inputClass}
+                  />
+
+                  <div className="flex items-center gap-3">
+                    <AnimatePresence>
+                      {imgPreview && (
+                        <motion.img
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          src={imgPreview}
+                          alt="Question image"
+                          className="w-16 h-16 object-cover rounded-lg border border-border"
+                        />
+                      )}
+                    </AnimatePresence>
+                    <label className="cursor-pointer">
                       <input
-                        type="text"
-                        required
-                        value={option.text}
-                        onChange={(e) => updateOptionText(q.id, oi, e.target.value)}
-                        placeholder={`Option ${oi + 1}`}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        onChange={(e) => handleQuestionImage(q.id, e)}
+                        className="hidden"
+                      />
+                      <span className="text-xs border border-border hover:border-primary rounded-lg px-2.5 py-1 text-text-muted hover:text-primary transition">
+                        {imgPreview ? 'Change image' : 'Add image'}
+                      </span>
+                    </label>
+                    {imgPreview && (
+                      <button
+                        type="button"
+                        onClick={() => setQuestions((prev) => prev.map((qq) => (qq.id === q.id ? { ...qq, image: null, existingImageUrl: null } : qq)))}
+                        className="text-xs text-text-muted hover:text-wrong transition cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {q.options.map((option, oi) => (
+                      <div key={oi} className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setCorrectAnswer(q.id, oi)}
+                          className={`shrink-0 w-5 h-5 rounded-full border-2 transition cursor-pointer ${
+                            option.isCorrect
+                              ? 'border-correct bg-correct/20'
+                              : 'border-border hover:border-text-muted'
+                          }`}
+                          title="Mark as correct answer"
+                        />
+                        <input
+                          type="text"
+                          required
+                          value={option.text}
+                          onChange={(e) => updateOptionText(q.id, oi, e.target.value)}
+                          placeholder={`Option ${oi + 1}`}
+                          className={inputClass}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="flex flex-col gap-1 flex-1">
+                      <label className="text-xs text-text-muted">Time limit (s)</label>
+                      <input
+                        type="number"
+                        min={5}
+                        max={60}
+                        value={q.timeLimit}
+                        onChange={(e) => updateQuestion(q.id, 'timeLimit', Number(e.target.value))}
                         className={inputClass}
                       />
                     </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-4">
-                  <div className="flex flex-col gap-1 flex-1">
-                    <label className="text-xs text-text-muted">Time limit (s)</label>
-                    <input
-                      type="number"
-                      min={5}
-                      max={60}
-                      value={q.timeLimit}
-                      onChange={(e) => updateQuestion(q.id, 'timeLimit', Number(e.target.value))}
-                      className={inputClass}
-                    />
+                    <div className="flex flex-col gap-1 flex-1">
+                      <label className="text-xs text-text-muted">Points</label>
+                      <input
+                        type="number"
+                        min={100}
+                        max={2000}
+                        step={100}
+                        value={q.points}
+                        onChange={(e) => updateQuestion(q.id, 'points', Number(e.target.value))}
+                        className={inputClass}
+                      />
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1 flex-1">
-                    <label className="text-xs text-text-muted">Points</label>
-                    <input
-                      type="number"
-                      min={100}
-                      max={2000}
-                      step={100}
-                      value={q.points}
-                      onChange={(e) => updateQuestion(q.id, 'points', Number(e.target.value))}
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
 
-        <button
+        <motion.button
           type="button"
           onClick={addQuestion}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
           className="border border-dashed border-border hover:border-primary text-text-muted hover:text-primary py-3 rounded-xl transition cursor-pointer"
         >
           + Add question
-        </button>
+        </motion.button>
 
         <div className="flex items-center justify-between pt-2">
           <span className="text-sm text-text-muted">
             {questions.length} question{questions.length !== 1 && 's'}
           </span>
-          <button
+          <motion.button
             type="submit"
             disabled={isPending}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             className="bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-lg transition cursor-pointer"
           >
             {isPending ? 'Saving...' : 'Save changes'}
-          </button>
+          </motion.button>
         </div>
       </form>
     </div>

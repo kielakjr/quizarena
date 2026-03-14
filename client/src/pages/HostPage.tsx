@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, Link, useNavigate } from 'react-router';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useGameSocket } from '../hooks/useGameSocket';
-import api from '../api/axios';
+import api, { imageUrl } from '../api/axios';
 import type { Quiz } from '../types/quiz';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5003';
 
 const HostTimerBar = ({ timeLimit, questionIndex }: { timeLimit: number; questionIndex: number }) => {
   const [percent, setPercent] = useState(100);
@@ -61,9 +60,25 @@ const CountdownCircle = ({ seconds }: { seconds: number }) => {
   }, [seconds]);
 
   return (
-    <div className="w-28 h-28 rounded-full border-4 border-primary flex items-center justify-center animate-pulse">
-      <span className="text-6xl font-extrabold text-primary">{count || ''}</span>
-    </div>
+    <motion.div
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      transition={{ type: 'spring', stiffness: 200 }}
+      className="w-28 h-28 rounded-full border-4 border-primary flex items-center justify-center"
+    >
+      <AnimatePresence mode="popLayout">
+        <motion.span
+          key={count}
+          initial={{ scale: 1.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.5, opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="text-6xl font-extrabold text-primary"
+        >
+          {count || ''}
+        </motion.span>
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
@@ -131,32 +146,47 @@ const HostPage = () => {
 
   if (gameState.phase === 'countdown') {
     return (
-      <div className="flex flex-col items-center justify-center gap-6 pt-24">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex flex-col items-center justify-center gap-6 pt-24"
+      >
         <p className="text-text-muted text-lg font-medium">Game starting...</p>
         <CountdownCircle seconds={gameState.countdownSeconds} />
-      </div>
+      </motion.div>
     );
   }
 
   if (gameState.phase === 'questionCountdown') {
     return (
-      <div className="flex flex-col items-center justify-center gap-6 pt-24">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex flex-col items-center justify-center gap-6 pt-24"
+      >
         <p className="text-text-muted text-lg font-medium">Next question in...</p>
         <CountdownCircle seconds={gameState.countdownSeconds} />
-      </div>
-     );
+      </motion.div>
+    );
   }
 
   if (gameState.phase === 'finished') {
     return (
-      <div className="flex flex-col items-center gap-6 pt-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center gap-6 pt-8"
+      >
         <h1 className="text-2xl font-bold">Game Over!</h1>
         <div className="w-full max-w-xl bg-surface border border-border rounded-2xl p-6">
           <h2 className="font-semibold mb-4">Final Leaderboard</h2>
           <div className="space-y-2">
             {gameState.leaderboard.map((entry, i) => (
-              <div
+              <motion.div
                 key={entry.nickname}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.1 }}
                 className="flex items-center justify-between bg-background border border-border rounded-lg px-4 py-3"
               >
                 <span className="font-medium">
@@ -164,7 +194,7 @@ const HostPage = () => {
                   {entry.nickname}
                 </span>
                 <span className="font-bold text-accent">{entry.score} pts</span>
-              </div>
+              </motion.div>
             ))}
           </div>
           <Link
@@ -174,19 +204,26 @@ const HostPage = () => {
             Back to dashboard
           </Link>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   if (gameState.phase === 'leaderboard') {
     return (
-      <div className="flex flex-col items-center gap-6 pt-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center gap-6 pt-8"
+      >
         <h1 className="text-xl font-bold">Leaderboard</h1>
         <div className="w-full max-w-xl bg-surface border border-border rounded-2xl p-6">
           <div className="space-y-2 mb-6">
             {gameState.leaderboard.map((entry, i) => (
-              <div
+              <motion.div
                 key={entry.nickname}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.1 }}
                 className="flex items-center justify-between bg-background border border-border rounded-lg px-4 py-3"
               >
                 <span className="font-medium">
@@ -194,17 +231,19 @@ const HostPage = () => {
                   {entry.nickname}
                 </span>
                 <span className="font-bold text-accent">{entry.score}</span>
-              </div>
+              </motion.div>
             ))}
           </div>
-          <button
+          <motion.button
             onClick={() => actions.showNextQuestion(pin)}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             className="w-full bg-primary hover:bg-primary-hover text-white font-semibold px-6 py-2.5 rounded-lg transition cursor-pointer"
           >
             Next question
-          </button>
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -213,7 +252,12 @@ const HostPage = () => {
     if (!question) return null;
 
     return (
-      <div className="flex flex-col items-center gap-6">
+      <motion.div
+        key={`question-${question.index}`}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center gap-6"
+      >
         <div className="flex items-center justify-between w-full">
           <h1 className="text-xl font-bold">{quiz.title}</h1>
           <span className="text-sm text-text-muted">
@@ -233,9 +277,9 @@ const HostPage = () => {
 
           {question.imageUrl && (
             <img
-              src={`${API_URL}${question.imageUrl}`}
+              src={imageUrl(question.imageUrl)}
               alt="Question"
-              className="max-h-56 rounded-xl object-contain"
+              className="max-h-80 w-full rounded-xl object-contain"
             />
           )}
 
@@ -277,20 +321,28 @@ const HostPage = () => {
           )}
 
           {results && (
-            <button
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => actions.nextQuestion(pin)}
               className="bg-primary hover:bg-primary-hover text-white font-semibold px-6 py-2.5 rounded-lg transition cursor-pointer"
             >
               {question.index + 1 >= question.total ? 'Show final results' : 'Next'}
-            </button>
+            </motion.button>
           )}
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center gap-8 pt-8">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex flex-col items-center gap-8 pt-8"
+    >
       <div className="text-center">
         <h1 className="text-2xl font-bold mb-1">{quiz.title}</h1>
         <p className="text-text-muted text-sm">
@@ -299,10 +351,15 @@ const HostPage = () => {
       </div>
 
       {pin && (
-        <div className="bg-surface border border-border rounded-2xl px-8 py-4 text-center">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 200 }}
+          className="bg-surface border border-border rounded-2xl px-8 py-4 text-center"
+        >
           <span className="text-text-muted text-sm block mb-1">Game PIN</span>
           <span className="font-mono text-4xl font-extrabold text-accent tracking-widest">{pin}</span>
-        </div>
+        </motion.div>
       )}
 
       <div className="w-full max-w-xl bg-surface border border-border rounded-2xl p-6">
@@ -315,14 +372,20 @@ const HostPage = () => {
           <p className="text-text-muted text-sm text-center py-4">Waiting for players to join...</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
-            {gameState.players.map((player, i) => (
-              <div
-                key={i}
-                className="bg-background border border-border rounded-lg px-3 py-2 text-center text-sm font-medium text-text"
-              >
-                {player.nickname}
-              </div>
-            ))}
+            <AnimatePresence>
+              {gameState.players.map((player, i) => (
+                <motion.div
+                  key={player.nickname}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-center text-sm font-medium text-text"
+                >
+                  {player.nickname}
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         )}
 
@@ -333,16 +396,18 @@ const HostPage = () => {
           >
             Cancel
           </Link>
-          <button
+          <motion.button
             onClick={() => actions.startGame(pin)}
             disabled={gameState.players.length === 0}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             className="bg-correct hover:brightness-110 disabled:opacity-40 text-background font-bold px-8 py-3 rounded-lg transition cursor-pointer text-lg"
           >
             Start game!
-          </button>
+          </motion.button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

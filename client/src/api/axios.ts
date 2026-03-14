@@ -1,8 +1,12 @@
 import axios from 'axios';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5003',
+  baseURL: API_BASE,
 });
+
+export const imageUrl = (path: string) => `${API_BASE}${path}`;
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
