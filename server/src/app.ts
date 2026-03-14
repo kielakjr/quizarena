@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import { Server } from 'socket.io';
 import http from 'http';
 import { env } from './config/env';
@@ -21,6 +22,7 @@ const io = new Server(server, {
 
 app.use(cors({ origin: env.clientUrl }));
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 setUpSocket(io);
 

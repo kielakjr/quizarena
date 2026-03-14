@@ -1,13 +1,73 @@
 import { Request, Response } from 'express';
 import { Quiz } from '../models/Quiz';
+import { createQuizSchema, updateQuizSchema } from '../validation/quiz';
+import { ZodError } from 'zod';
+
+function parseMultipartBody(req: Request) {
+  const body = { ...req.body };
+
+  if (typeof body.questions === 'string') {
+    body.questions = JSON.parse(body.questions);
+  }
+  if (typeof body.isPublic === 'string') {
+    body.isPublic = body.isPublic === 'true';
+  }
+
+  return body;
+}
+
+function getUploadedFiles(req: Request) {
+  const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
+  return {
+    coverImage: files?.coverImage?.[0],
+    questionImages: files?.questionImages ?? [],
+  };
+}
 
 export const createQuiz = async (req: Request, res: Response): Promise<void> => {
-  const quiz = await Quiz.create({
-    ...req.body,
-    creator: req.userId,
-  });
+  try {
+    const body = parseMultipartBody(req);
+    const { coverImage, questionImages } = getUploadedFiles(req);
 
-  res.status(201).json({ quiz });
+    const validated = createQuizSchema.parse(body);
+
+    if (coverImage) {
+      (validated as any).coverImage = `/uploads/${coverImage.filename}`;
+    }
+
+    if (questionImages.length > 0) {
+      const imageMap: Record<string, string> = {};
+      if (typeof req.body.questionImageMap === 'string') {
+        Object.assign(imageMap, JSON.parse(req.body.questionImageMap));
+      }
+
+      for (const [fileIndex, file] of questionImages.entries()) {
+        const questionIndex = imageMap[String(fileIndex)] ?? fileIndex;
+        const qi = Number(questionIndex);
+        if (validated.questions[qi]) {
+          validated.questions[qi].imageUrl = `/uploads/${file.filename}`;
+        }
+      }
+    }
+
+    const quiz = await Quiz.create({
+      ...validated,
+      creator: req.userId,
+    });
+
+    res.status(201).json({ quiz });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const messages = error.issues.map((issue) => issue.message);
+      res.status(400).json({ message: 'Validation error', errors: messages });
+      return;
+    }
+    if (error instanceof SyntaxError) {
+      res.status(400).json({ message: 'Invalid JSON in form fields' });
+      return;
+    }
+    throw error;
+  }
 };
 
 export const getMyQuizzes = async (req: Request, res: Response): Promise<void> => {
@@ -56,12 +116,49 @@ export const updateQuiz = async (req: Request, res: Response): Promise<void> => 
     return;
   }
 
-  const updated = await Quiz.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  try {
+    const body = parseMultipartBody(req);
+    const { coverImage, questionImages } = getUploadedFiles(req);
 
-  res.json({ quiz: updated });
+    const validated = updateQuizSchema.parse(body);
+
+    if (coverImage) {
+      (validated as any).coverImage = `/uploads/${coverImage.filename}`;
+    }
+
+    if (questionImages.length > 0 && validated.questions) {
+      const imageMap: Record<string, string> = {};
+      if (typeof req.body.questionImageMap === 'string') {
+        Object.assign(imageMap, JSON.parse(req.body.questionImageMap));
+      }
+
+      for (const [fileIndex, file] of questionImages.entries()) {
+        const questionIndex = imageMap[String(fileIndex)] ?? fileIndex;
+        const qi = Number(questionIndex);
+        if (validated.questions[qi]) {
+          validated.questions[qi].imageUrl = `/uploads/${file.filename}`;
+        }
+      }
+    }
+
+    const updated = await Quiz.findByIdAndUpdate(req.params.id, validated, {
+      new: true,
+      runValidators: true,
+    });
+
+    res.json({ quiz: updated });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const messages = error.issues.map((issue) => issue.message);
+      res.status(400).json({ message: 'Validation error', errors: messages });
+      return;
+    }
+    if (error instanceof SyntaxError) {
+      res.status(400).json({ message: 'Invalid JSON in form fields' });
+      return;
+    }
+    throw error;
+  }
 };
 
 export const deleteQuiz = async (req: Request, res: Response): Promise<void> => {
