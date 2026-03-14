@@ -4,6 +4,7 @@ import cors from 'cors';
 import { env } from './config/env';
 
 import authRoutes from './routes/auth.routes';
+import quizRoutes from './routes/quiz.routes';
 
 const app = express();
 
@@ -15,5 +16,6 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 app.use('/auth', authRoutes);
+app.use('/quizzes', quizRoutes);
 
 export default app;
