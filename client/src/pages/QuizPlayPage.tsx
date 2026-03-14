@@ -1,23 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router';
-
-const mockQuestions = [
-  {
-    text: 'Which keyword declares a block-scoped variable in JavaScript?',
-    options: ['var', 'let', 'both', 'neither'],
-    correctIndex: 1,
-  },
-  {
-    text: 'What does CSS stand for?',
-    options: ['Computer Style Sheets', 'Cascading Style Sheets', 'Creative Style Sheets', 'Colorful Style Sheets'],
-    correctIndex: 1,
-  },
-  {
-    text: 'Which hook manages side effects in React?',
-    options: ['useState', 'useRef', 'useEffect', 'useMemo'],
-    correctIndex: 2,
-  },
-];
+import api from '../api/axios';
+import type { Quiz } from '../types/quiz';
 
 const optionColors = [
   { bg: 'bg-red-500/15', border: 'border-red-500/40', hover: 'hover:border-red-500' },
@@ -31,6 +15,10 @@ const QuizPlayPage = () => {
   const [searchParams] = useSearchParams();
   const nickname = searchParams.get('nickname') ?? 'Player';
 
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
+
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -38,16 +26,43 @@ const QuizPlayPage = () => {
   const [streak, setStreak] = useState(0);
   const [finished, setFinished] = useState(false);
 
-  const question = mockQuestions[current];
-  const total = mockQuestions.length;
+  useEffect(() => {
+    api.get(`/quizzes/${id}`)
+      .then((res) => setQuiz(res.data.quiz))
+      .catch(() => setFetchError('Failed to load quiz'))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <main className="flex items-center justify-center min-h-screen">
+        <p className="text-text-muted animate-pulse">Loading quiz...</p>
+      </main>
+    );
+  }
+
+  if (fetchError || !quiz) {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-screen gap-4">
+        <p className="text-wrong">{fetchError || 'Quiz not found'}</p>
+        <Link to="/" className="text-primary hover:underline text-sm">Go home</Link>
+      </main>
+    );
+  }
+
+  const questions = quiz.questions;
+  const question = questions[current];
+  const total = questions.length;
   const progress = ((current + (revealed ? 1 : 0)) / total) * 100;
+
+  const correctIndex = question.options.findIndex((o) => o.isCorrect);
 
   const handleSelect = (index: number) => {
     if (revealed) return;
     setSelected(index);
     setRevealed(true);
-    if (index === question.correctIndex) {
-      setScore((s) => s + 1);
+    if (question.options[index].isCorrect) {
+      setScore((s) => s + question.points);
       setStreak((s) => s + 1);
     } else {
       setStreak(0);
@@ -71,7 +86,7 @@ const QuizPlayPage = () => {
     if (!revealed) {
       return `${base} ${color.bg} ${color.border} ${color.hover}`;
     }
-    if (index === question.correctIndex) {
+    if (question.options[index].isCorrect) {
       return `${base} border-correct bg-correct/20 text-correct`;
     }
     if (index === selected) {
@@ -80,8 +95,10 @@ const QuizPlayPage = () => {
     return `${base} border-border bg-surface opacity-40`;
   };
 
+  const maxScore = questions.reduce((sum, q) => sum + q.points, 0);
+
   if (finished) {
-    const percentage = Math.round((score / total) * 100);
+    const percentage = Math.round((score / maxScore) * 100);
     return (
       <main className="flex items-center justify-center min-h-screen px-4">
         <div className="w-full max-w-md bg-surface border border-border rounded-2xl p-8 flex flex-col items-center gap-5 shadow-lg shadow-primary/10">
@@ -96,11 +113,15 @@ const QuizPlayPage = () => {
 
           <div className="w-full grid grid-cols-2 gap-3">
             <div className="bg-background border border-border rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-primary">{score}/{total}</div>
+              <div className="text-2xl font-bold text-primary">
+                {questions.filter((_, i) => i < total).length > 0
+                  ? `${Math.round(score / (maxScore / total))}/${total}`
+                  : '0/0'}
+              </div>
               <div className="text-xs text-text-muted mt-1">Correct</div>
             </div>
             <div className="bg-background border border-border rounded-lg p-3 text-center">
-              <div className="text-2xl font-bold text-accent">{score * 100}</div>
+              <div className="text-2xl font-bold text-accent">{score}</div>
               <div className="text-xs text-text-muted mt-1">Points</div>
             </div>
           </div>
@@ -133,10 +154,11 @@ const QuizPlayPage = () => {
 
   return (
     <main className="min-h-screen flex flex-col">
+      {/* Top bar */}
       <div className="bg-surface border-b border-border px-4 py-3">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-sm text-text-muted">Game <span className="font-mono text-accent">#{id}</span></span>
+            <span className="text-sm font-semibold truncate max-w-48">{quiz.title}</span>
             {streak >= 2 && (
               <span className="text-xs bg-accent/15 text-accent font-semibold px-2 py-0.5 rounded-full">
                 {streak} streak
@@ -145,7 +167,7 @@ const QuizPlayPage = () => {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-text-muted">{nickname}</span>
-            <span className="text-sm font-bold text-accent">{score * 100} pts</span>
+            <span className="text-sm font-bold text-accent">{score} pts</span>
           </div>
         </div>
       </div>
@@ -160,6 +182,7 @@ const QuizPlayPage = () => {
       <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <span className="text-sm font-medium text-text-muted">{current + 1} of {total}</span>
+          <span className="text-xs text-text-muted">{question.timeLimit}s &middot; {question.points} pts</span>
         </div>
 
         <h2 className="text-xl sm:text-2xl font-bold text-center mb-8">{question.text}</h2>
@@ -167,7 +190,7 @@ const QuizPlayPage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-auto">
           {question.options.map((option, i) => (
             <button
-              key={i}
+              key={option._id ?? i}
               onClick={() => handleSelect(i)}
               disabled={revealed}
               className={optionStyle(i)}
@@ -175,15 +198,15 @@ const QuizPlayPage = () => {
               <span className="opacity-60 mr-2 font-mono text-sm">
                 {String.fromCharCode(65 + i)}
               </span>
-              {option}
+              {option.text}
             </button>
           ))}
         </div>
 
         {revealed && (
           <div className="flex items-center justify-between mt-6">
-            <span className={`text-sm font-semibold ${selected === question.correctIndex ? 'text-correct' : 'text-wrong'}`}>
-              {selected === question.correctIndex ? 'Correct! +100 pts' : 'Wrong answer'}
+            <span className={`text-sm font-semibold ${selected === correctIndex ? 'text-correct' : 'text-wrong'}`}>
+              {selected === correctIndex ? `Correct! +${question.points} pts` : 'Wrong answer'}
             </span>
             <button
               onClick={handleNext}

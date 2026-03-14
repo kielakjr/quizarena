@@ -1,47 +1,91 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router';
+import api from '../api/axios';
+import type { Quiz } from '../types/quiz';
 
 const mockPlayers = [
-  { nickname: 'Alex', joinedAt: '0:12' },
-  { nickname: 'Maya', joinedAt: '0:18' },
-  { nickname: 'Sam', joinedAt: '0:25' },
-  { nickname: 'Jordan', joinedAt: '0:31' },
+  { nickname: 'Alex' },
+  { nickname: 'Maya' },
+  { nickname: 'Sam' },
+  { nickname: 'Jordan' },
 ];
 
 const HostPage = () => {
   const { id } = useParams();
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [loading, setLoading] = useState(true);
   const [started, setStarted] = useState(false);
+  const [currentQ, setCurrentQ] = useState(0);
 
-  const pin = '384921';
+  useEffect(() => {
+    api.get(`/quizzes/${id}`)
+      .then((res) => setQuiz(res.data.quiz))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return <p className="text-text-muted animate-pulse">Loading quiz...</p>;
+  }
+
+  if (!quiz) {
+    return (
+      <div className="flex flex-col items-center gap-4 pt-16">
+        <p className="text-wrong">Quiz not found</p>
+        <Link to="/dashboard" className="text-primary hover:underline text-sm">Back to dashboard</Link>
+      </div>
+    );
+  }
 
   if (started) {
+    const question = quiz.questions[currentQ];
+    const isLast = currentQ + 1 >= quiz.questions.length;
+
     return (
       <div className="flex flex-col items-center gap-6">
         <div className="flex items-center justify-between w-full">
-          <h1 className="text-xl font-bold">JavaScript Basics</h1>
-          <span className="text-sm text-text-muted">Game #{id}</span>
+          <h1 className="text-xl font-bold">{quiz.title}</h1>
+          <span className="text-sm text-text-muted">
+            Question {currentQ + 1} of {quiz.questions.length}
+          </span>
         </div>
 
         <div className="w-full bg-surface border border-border rounded-xl p-8 flex flex-col items-center gap-6">
           <div className="text-center">
-            <p className="text-text-muted text-sm mb-2">Question 1 of 10</p>
-            <h2 className="text-xl font-semibold">Which keyword declares a block-scoped variable in JavaScript?</h2>
+            <p className="text-text-muted text-xs mb-1">{question.timeLimit}s &middot; {question.points} pts</p>
+            <h2 className="text-xl font-semibold">{question.text}</h2>
           </div>
 
           <div className="w-full grid grid-cols-2 gap-3">
-            {['var', 'let', 'both', 'neither'].map((opt, i) => (
+            {question.options.map((opt) => (
               <div
-                key={i}
-                className="bg-background border border-border rounded-lg p-3 flex items-center justify-between"
+                key={opt._id}
+                className={`rounded-lg p-3 flex items-center justify-between ${
+                  opt.isCorrect
+                    ? 'bg-correct/10 border border-correct/30'
+                    : 'bg-background border border-border'
+                }`}
               >
-                <span className="text-sm font-medium">{opt}</span>
-                <span className="text-xs text-text-muted">{i === 1 ? '3' : i === 0 ? '1' : '0'} answers</span>
+                <span className="text-sm font-medium">{opt.text}</span>
+                {opt.isCorrect && (
+                  <span className="text-xs text-correct font-semibold">Correct</span>
+                )}
               </div>
             ))}
           </div>
 
-          <button className="bg-primary hover:bg-primary-hover text-white font-semibold px-6 py-2.5 rounded-lg transition cursor-pointer">
-            Next question
+          <button
+            onClick={() => {
+              if (isLast) {
+                setStarted(false);
+                setCurrentQ(0);
+              } else {
+                setCurrentQ((c) => c + 1);
+              }
+            }}
+            className="bg-primary hover:bg-primary-hover text-white font-semibold px-6 py-2.5 rounded-lg transition cursor-pointer"
+          >
+            {isLast ? 'End game' : 'Next question'}
           </button>
         </div>
       </div>
@@ -51,10 +95,10 @@ const HostPage = () => {
   return (
     <div className="flex flex-col items-center gap-8 pt-8">
       <div className="text-center">
-        <p className="text-text-muted text-sm mb-2">Join at quizarena.com with Game PIN:</p>
-        <div className="text-6xl font-extrabold text-accent tracking-[0.3em] font-mono">
-          {pin}
-        </div>
+        <h1 className="text-2xl font-bold mb-1">{quiz.title}</h1>
+        <p className="text-text-muted text-sm">
+          {quiz.questions.length} questions &middot; {quiz.isPublic ? 'Public' : 'Private'}
+        </p>
       </div>
 
       <div className="w-full max-w-xl bg-surface border border-border rounded-2xl p-6">
@@ -67,7 +111,7 @@ const HostPage = () => {
           {mockPlayers.map((player, i) => (
             <div
               key={i}
-              className="bg-background border border-border rounded-lg px-3 py-2 text-center text-sm font-medium text-text animate-fade-in"
+              className="bg-background border border-border rounded-lg px-3 py-2 text-center text-sm font-medium text-text"
             >
               {player.nickname}
             </div>
@@ -83,8 +127,7 @@ const HostPage = () => {
           </Link>
           <button
             onClick={() => setStarted(true)}
-            disabled={mockPlayers.length < 1}
-            className="bg-correct hover:brightness-110 disabled:opacity-40 text-background font-bold px-8 py-3 rounded-lg transition cursor-pointer text-lg"
+            className="bg-correct hover:brightness-110 text-background font-bold px-8 py-3 rounded-lg transition cursor-pointer text-lg"
           >
             Start game!
           </button>

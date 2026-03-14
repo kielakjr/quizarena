@@ -1,5 +1,5 @@
-import { useState, useActionState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useState, useEffect, useActionState } from 'react';
+import { useParams, useNavigate, Link } from 'react-router';
 import api from '../api/axios';
 import type { Option } from '../types/quiz';
 
@@ -9,11 +9,6 @@ interface QuestionForm {
   options: Option[];
   timeLimit: number;
   points: number;
-}
-
-interface FormState {
-  error: string | null;
-  createdId: string | null;
 }
 
 const emptyQuestion = (id: number): QuestionForm => ({
@@ -29,12 +24,39 @@ const emptyQuestion = (id: number): QuestionForm => ({
   points: 1000,
 });
 
-const CreateQuizPage = () => {
+const EditQuizPage = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [questions, setQuestions] = useState<QuestionForm[]>([emptyQuestion(1)]);
-  const [isPublic, setIsPublic] = useState(true);
 
-  const [state, submitAction, isPending] = useActionState<FormState, FormData>(
+  const [questions, setQuestions] = useState<QuestionForm[]>([]);
+  const [isPublic, setIsPublic] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
+  const [defaultTitle, setDefaultTitle] = useState('');
+  const [defaultDescription, setDefaultDescription] = useState('');
+
+  useEffect(() => {
+    api.get(`/quizzes/${id}`)
+      .then((res) => {
+        const quiz = res.data.quiz;
+        setDefaultTitle(quiz.title);
+        setDefaultDescription(quiz.description ?? '');
+        setIsPublic(quiz.isPublic);
+        setQuestions(
+          quiz.questions.map((q: { text: string; options: Option[]; timeLimit: number; points: number }, i: number) => ({
+            id: i + 1,
+            text: q.text,
+            options: q.options.map((o: Option) => ({ text: o.text, isCorrect: o.isCorrect })),
+            timeLimit: q.timeLimit,
+            points: q.points,
+          })),
+        );
+      })
+      .catch(() => setFetchError('Failed to load quiz'))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const [error, submitAction, isPending] = useActionState<string | null, FormData>(
     async (_prev, formData) => {
       const title = formData.get('title') as string;
       const description = formData.get('description') as string;
@@ -52,32 +74,32 @@ const CreateQuizPage = () => {
       };
 
       try {
-        const res = await api.post('/quizzes', payload);
-        return { error: null, createdId: res.data.quiz._id };
+        await api.put(`/quizzes/${id}`, payload);
+        navigate('/dashboard');
+        return null;
       } catch (err: unknown) {
         if (err && typeof err === 'object' && 'response' in err) {
           const axiosErr = err as { response?: { data?: { message?: string; errors?: { message: string }[] } } };
-          const msg = axiosErr.response?.data?.errors?.[0]?.message ?? axiosErr.response?.data?.message ?? 'Failed to create quiz';
-          return { error: msg, createdId: null };
+          return axiosErr.response?.data?.errors?.[0]?.message ?? axiosErr.response?.data?.message ?? 'Failed to update quiz';
         }
-        return { error: 'Something went wrong', createdId: null };
+        return 'Something went wrong';
       }
     },
-    { error: null, createdId: null },
+    null,
   );
 
   const addQuestion = () => {
     setQuestions((prev) => [...prev, emptyQuestion(prev.length + 1)]);
   };
 
-  const removeQuestion = (id: number) => {
+  const removeQuestion = (qid: number) => {
     if (questions.length <= 1) return;
-    setQuestions((prev) => prev.filter((q) => q.id !== id));
+    setQuestions((prev) => prev.filter((q) => q.id !== qid));
   };
 
-  const updateQuestion = (id: number, field: string, value: string | number) => {
+  const updateQuestion = (qid: number, field: string, value: string | number) => {
     setQuestions((prev) =>
-      prev.map((q) => (q.id === id ? { ...q, [field]: value } : q)),
+      prev.map((q) => (q.id === qid ? { ...q, [field]: value } : q)),
     );
   };
 
@@ -104,43 +126,31 @@ const CreateQuizPage = () => {
   const inputClass =
     'bg-background border border-border rounded-lg px-4 py-2.5 text-text placeholder:text-text-muted/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition w-full';
 
-  if (state.createdId) {
+  if (loading) {
+    return <p className="text-text-muted animate-pulse">Loading quiz...</p>;
+  }
+
+  if (fetchError) {
     return (
-      <div className="max-w-md mx-auto flex flex-col items-center gap-6 pt-16">
-        <div className="bg-surface border border-border rounded-2xl p-8 w-full flex flex-col items-center gap-5 shadow-lg shadow-primary/10">
-          <div className="w-12 h-12 bg-correct/15 text-correct rounded-full flex items-center justify-center text-2xl">
-            &#10003;
-          </div>
-          <h1 className="text-2xl font-bold">Quiz created!</h1>
-          <p className="text-text-muted text-sm text-center">
-            Your quiz is ready. Share it with players or start hosting.
-          </p>
-          <div className="flex gap-3 w-full mt-2">
-            <Link
-              to="/dashboard"
-              className="flex-1 text-center border border-border hover:border-primary text-text text-sm font-semibold py-2.5 rounded-lg transition"
-            >
-              Dashboard
-            </Link>
-            <button
-              onClick={() => navigate(`/host/${state.createdId}`)}
-              className="flex-1 bg-primary hover:bg-primary-hover text-white text-sm font-semibold py-2.5 rounded-lg transition cursor-pointer"
-            >
-              Host game
-            </button>
-          </div>
-        </div>
+      <div className="flex flex-col items-center gap-4 pt-16">
+        <p className="text-wrong">{fetchError}</p>
+        <Link to="/dashboard" className="text-primary hover:underline text-sm">Back to dashboard</Link>
       </div>
     );
   }
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Create a quiz</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Edit quiz</h1>
+        <Link to="/dashboard" className="text-sm text-text-muted hover:text-text transition">
+          Cancel
+        </Link>
+      </div>
 
-      {state.error && (
+      {error && (
         <div className="bg-wrong/10 border border-wrong/30 text-wrong rounded-lg px-4 py-3 mb-6 text-sm">
-          {state.error}
+          {error}
         </div>
       )}
 
@@ -154,6 +164,7 @@ const CreateQuizPage = () => {
               type="text"
               required
               maxLength={100}
+              defaultValue={defaultTitle}
               placeholder="e.g. JavaScript Fundamentals"
               className={inputClass}
             />
@@ -164,6 +175,7 @@ const CreateQuizPage = () => {
               id="description"
               name="description"
               maxLength={500}
+              defaultValue={defaultDescription}
               placeholder="What is this quiz about?"
               rows={3}
               className={`${inputClass} resize-none`}
@@ -279,7 +291,7 @@ const CreateQuizPage = () => {
             disabled={isPending}
             className="bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-lg transition cursor-pointer"
           >
-            {isPending ? 'Publishing...' : 'Publish quiz'}
+            {isPending ? 'Saving...' : 'Save changes'}
           </button>
         </div>
       </form>
@@ -287,4 +299,4 @@ const CreateQuizPage = () => {
   );
 };
 
-export default CreateQuizPage;
+export default EditQuizPage;

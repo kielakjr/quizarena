@@ -9,6 +9,7 @@ import QuizPlayPage from './pages/QuizPlayPage';
 import DashboardPage from './pages/DashboardPage';
 import CreateQuizPage from './pages/CreateQuizPage';
 import HostPage from './pages/HostPage';
+import EditQuizPage from './pages/EditQuizPage';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -27,6 +28,7 @@ const App = () => {
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/create" element={<CreateQuizPage />} />
+              <Route path="/edit/:id" element={<EditQuizPage />} />
               <Route path="/host/:id" element={<HostPage />} />
             </Route>
           </Route>
