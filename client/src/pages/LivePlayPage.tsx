@@ -27,7 +27,7 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
   const [countdown, setCountdown] = useState(0);
 
   useEffect(() => {
-    if (gameState.phase !== 'countdown') return;
+    if (gameState.phase !== 'countdown' && gameState.phase !== 'questionCountdown') return;
     setCountdown(gameState.countdownSeconds);
 
     const interval = setInterval(() => {
@@ -83,6 +83,21 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
       <main className="flex items-center justify-center min-h-screen px-4">
         <div className="flex flex-col items-center gap-4">
           <p className="text-text-muted text-lg font-medium">Get ready!</p>
+          <div className="w-28 h-28 rounded-full border-4 border-primary flex items-center justify-center animate-pulse">
+            <span className="text-6xl font-extrabold text-primary">
+              {countdown || ''}
+            </span>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (gameState.phase === 'questionCountdown') {
+    return (
+      <main className="flex items-center justify-center min-h-screen px-4">
+        <div className="flex flex-col items-center gap-4">
+          <p className="text-text-muted text-lg font-medium">Next question in...</p>
           <div className="w-28 h-28 rounded-full border-4 border-primary flex items-center justify-center animate-pulse">
             <span className="text-6xl font-extrabold text-primary">
               {countdown || ''}

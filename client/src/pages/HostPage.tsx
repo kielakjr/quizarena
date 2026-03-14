@@ -136,6 +136,15 @@ const HostPage = () => {
     );
   }
 
+  if (gameState.phase === 'questionCountdown') {
+    return (
+      <div className="flex flex-col items-center justify-center gap-6 pt-24">
+        <p className="text-text-muted text-lg font-medium">Next question in...</p>
+        <CountdownCircle seconds={gameState.countdownSeconds} />
+      </div>
+     );
+  }
+
   if (gameState.phase === 'finished') {
     return (
       <div className="flex flex-col items-center gap-6 pt-8">

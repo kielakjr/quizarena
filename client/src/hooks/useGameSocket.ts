@@ -31,7 +31,7 @@ export interface QuestionResults {
 }
 
 export interface GameState {
-  phase: 'connecting' | 'lobby' | 'countdown' | 'playing' | 'results' | 'leaderboard' | 'finished';
+  phase: 'connecting' | 'lobby' | 'countdown' | 'playing' | 'questionCountdown' | 'results' | 'leaderboard' | 'finished';
   players: PlayerInfo[];
   question: QuestionData | null;
   results: QuestionResults | null;
@@ -48,6 +48,7 @@ type GameAction =
   | { type: 'PLAYER_LEFT'; players: PlayerInfo[] }
   | { type: 'GAME_COUNTDOWN'; seconds: number }
   | { type: 'GAME_STARTED' }
+  | { type: 'QUESTION_COUNTDOWN'; seconds: number }
   | { type: 'QUESTION_SHOW'; question: QuestionData }
   | { type: 'QUESTION_ANSWERED'; answeredCount: number; totalPlayers: number }
   | { type: 'SUBMITTED_ANSWER' }
@@ -82,6 +83,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, phase: 'countdown', countdownSeconds: action.seconds };
     case 'GAME_STARTED':
       return { ...state, phase: 'playing' };
+    case 'QUESTION_COUNTDOWN':
+      return { ...state, phase: 'questionCountdown', countdownSeconds: action.seconds };
     case 'QUESTION_SHOW':
       return { ...state, phase: 'playing', question: action.question, results: null, answered: false, answeredCount: 0 };
     case 'QUESTION_ANSWERED':
@@ -121,6 +124,9 @@ export function useGameSocket() {
       },
       'game:started': () => {
         dispatch({ type: 'GAME_STARTED' });
+      },
+      'question:countdown': (data: { seconds: number }) => {
+          dispatch({ type: 'QUESTION_COUNTDOWN', seconds: data.seconds });
       },
       'question:show': (data: QuestionData) => {
         dispatch({ type: 'QUESTION_SHOW', question: data });
