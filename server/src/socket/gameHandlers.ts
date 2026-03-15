@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { gameStore, type GameSession } from './GameStore';
 import type { AuthPayload } from '../middleware/auth';
-import Quiz from '../models/Quiz';
+import { Quiz } from '../models/Quiz';
 
 function getPlayerList(game: GameSession): { nickname: string; score: number }[] {
   return Array.from(game.players.values()).map((p) => ({

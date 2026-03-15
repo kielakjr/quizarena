@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useGameSocket } from '../hooks/useGameSocket';
 import api, { imageUrl } from '../api/axios';
+import Avatar from '../components/Avatar';
 import type { Quiz } from '../types/quiz';
 
 const HostTimerBar = ({ timeLimit, questionIndex }: { timeLimit: number; questionIndex: number }) => {
@@ -189,8 +190,9 @@ const HostPage = () => {
                 transition={{ delay: i * 0.1 }}
                 className="flex items-center justify-between bg-background border border-border rounded-lg px-4 py-3"
               >
-                <span className="font-medium">
-                  <span className={`mr-2 font-bold ${i === 0 ? 'text-accent' : 'text-text-muted'}`}>#{i + 1}</span>
+                <span className="font-medium flex items-center gap-2">
+                  <span className={`font-bold ${i === 0 ? 'text-accent' : 'text-text-muted'}`}>#{i + 1}</span>
+                  <Avatar nickname={entry.nickname} size="sm" />
                   {entry.nickname}
                 </span>
                 <span className="font-bold text-accent">{entry.score} pts</span>
@@ -226,8 +228,9 @@ const HostPage = () => {
                 transition={{ delay: i * 0.1 }}
                 className="flex items-center justify-between bg-background border border-border rounded-lg px-4 py-3"
               >
-                <span className="font-medium">
-                  <span className={`mr-2 font-bold ${i === 0 ? 'text-accent' : 'text-text-muted'}`}>#{i + 1}</span>
+                <span className="font-medium flex items-center gap-2">
+                  <span className={`font-bold ${i === 0 ? 'text-accent' : 'text-text-muted'}`}>#{i + 1}</span>
+                  <Avatar nickname={entry.nickname} size="sm" />
                   {entry.nickname}
                 </span>
                 <span className="font-bold text-accent">{entry.score}</span>
@@ -380,8 +383,9 @@ const HostPage = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   transition={{ delay: i * 0.05 }}
-                  className="bg-background border border-border rounded-lg px-3 py-2 text-center text-sm font-medium text-text"
+                  className="bg-background border border-border rounded-lg px-3 py-2 flex items-center justify-center gap-2 text-sm font-medium text-text"
                 >
+                  <Avatar nickname={player.nickname} size="sm" />
                   {player.nickname}
                 </motion.div>
               ))}

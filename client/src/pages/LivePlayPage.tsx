@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { imageUrl } from '../api/axios';
+import Avatar from '../components/Avatar';
 import type { GameState } from '../hooks/useGameSocket';
 
 interface GameActions {
@@ -160,6 +161,7 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
           <h1 className="text-2xl font-bold">Game Over!</h1>
 
           <div className="flex flex-col items-center gap-1">
+            <Avatar nickname={nickname} size="lg" />
             <span className="text-text-muted text-sm">{nickname}</span>
             <motion.div
               initial={{ scale: 0 }}
@@ -186,8 +188,9 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
                     : 'bg-background border border-border'
                 }`}
               >
-                <span className="text-sm font-medium">
-                  <span className="text-text-muted mr-2">#{i + 1}</span>
+                <span className="text-sm font-medium flex items-center gap-2">
+                  <span className="text-text-muted">#{i + 1}</span>
+                  <Avatar nickname={entry.nickname} size="sm" />
                   {entry.nickname}
                 </span>
                 <span className="text-sm font-bold text-accent">{entry.score}</span>
@@ -281,8 +284,9 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
                     : 'bg-surface border border-border'
                 }`}
               >
-                <span className="font-medium">
-                  <span className="text-text-muted mr-2">#{i + 1}</span>
+                <span className="font-medium flex items-center gap-2">
+                  <span className="text-text-muted">#{i + 1}</span>
+                  <Avatar nickname={entry.nickname} size="sm" />
                   {entry.nickname}
                 </span>
                 <span className="font-bold text-accent">{entry.score}</span>
@@ -308,7 +312,10 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-text-muted">{nickname}</span>
+            <span className="text-sm text-text-muted flex items-center gap-1.5">
+              <Avatar nickname={nickname} size="sm" />
+              {nickname}
+            </span>
             <span className={`text-sm font-bold tabular-nums ${timeLeft <= 5 ? 'text-wrong' : 'text-accent'}`}>
               {timeLeft}s
             </span>

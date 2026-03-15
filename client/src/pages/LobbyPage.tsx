@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router';
 import { useGameSocket } from '../hooks/useGameSocket';
+import Avatar from '../components/Avatar';
 import LivePlayPage from './LivePlayPage';
 
 const LobbyPage = () => {
@@ -64,12 +65,13 @@ const LobbyPage = () => {
             {gameState.players.map((player, i) => (
               <div
                 key={i}
-                className={`rounded-lg px-3 py-2 text-sm font-medium text-center ${
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${
                   player.nickname === nickname
                     ? 'bg-primary/15 text-primary border border-primary/30'
                     : 'bg-background border border-border text-text-muted'
                 }`}
               >
+                <Avatar nickname={player.nickname} size="sm" />
                 {player.nickname}
               </div>
             ))}
