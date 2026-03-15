@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useGameSocket } from '../hooks/useGameSocket';
 import api, { imageUrl } from '../api/axios';
 import Avatar from '../components/Avatar';
+import AnimatedLeaderboard from '../components/AnimatedLeaderboard';
 import type { Quiz } from '../types/quiz';
 
 const HostTimerBar = ({ timeLimit, questionIndex }: { timeLimit: number; questionIndex: number }) => {
@@ -219,23 +220,11 @@ const HostPage = () => {
       >
         <h1 className="text-xl font-bold">Leaderboard</h1>
         <div className="w-full max-w-xl bg-surface border border-border rounded-2xl p-6">
-          <div className="space-y-2 mb-6">
-            {gameState.leaderboard.map((entry, i) => (
-              <motion.div
-                key={entry.nickname}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="flex items-center justify-between bg-background border border-border rounded-lg px-4 py-3"
-              >
-                <span className="font-medium flex items-center gap-2">
-                  <span className={`font-bold ${i === 0 ? 'text-accent' : 'text-text-muted'}`}>#{i + 1}</span>
-                  <Avatar nickname={entry.nickname} size="sm" />
-                  {entry.nickname}
-                </span>
-                <span className="font-bold text-accent">{entry.score}</span>
-              </motion.div>
-            ))}
+          <div className="mb-6">
+            <AnimatedLeaderboard
+              leaderboard={gameState.leaderboard}
+              previousLeaderboard={gameState.previousLeaderboard}
+            />
           </div>
           <motion.button
             onClick={() => actions.showNextQuestion(pin)}

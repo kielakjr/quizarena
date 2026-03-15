@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'framer-motion';
 import { imageUrl } from '../api/axios';
 import Avatar from '../components/Avatar';
+import AnimatedLeaderboard from '../components/AnimatedLeaderboard';
 import type { GameState } from '../hooks/useGameSocket';
 
 interface GameActions {
@@ -271,28 +272,11 @@ const LivePlayPage = ({ pin, nickname, gameState, actions }: LivePlayPageProps) 
           className="w-full max-w-md flex flex-col items-center gap-6"
         >
           <h2 className="text-xl font-bold">Leaderboard</h2>
-          <div className="w-full space-y-2">
-            {gameState.leaderboard.map((entry, i) => (
-              <motion.div
-                key={entry.nickname}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.08 }}
-                className={`flex items-center justify-between px-4 py-3 rounded-lg ${
-                  entry.nickname === nickname
-                    ? 'bg-primary/15 border border-primary/30'
-                    : 'bg-surface border border-border'
-                }`}
-              >
-                <span className="font-medium flex items-center gap-2">
-                  <span className="text-text-muted">#{i + 1}</span>
-                  <Avatar nickname={entry.nickname} size="sm" />
-                  {entry.nickname}
-                </span>
-                <span className="font-bold text-accent">{entry.score}</span>
-              </motion.div>
-            ))}
-          </div>
+          <AnimatedLeaderboard
+            leaderboard={gameState.leaderboard}
+            previousLeaderboard={gameState.previousLeaderboard}
+            currentNickname={nickname}
+          />
           <p className="text-text-muted text-sm animate-pulse">Next question coming up...</p>
         </motion.div>
       </main>

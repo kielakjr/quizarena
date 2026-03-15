@@ -37,6 +37,7 @@ export interface GameState {
   question: QuestionData | null;
   results: QuestionResults | null;
   leaderboard: LeaderboardEntry[];
+  previousLeaderboard: LeaderboardEntry[];
   answeredCount: number;
   totalPlayers: number;
   answered: boolean;
@@ -65,6 +66,7 @@ const initialState: GameState = {
   question: null,
   results: null,
   leaderboard: [],
+  previousLeaderboard: [],
   answeredCount: 0,
   totalPlayers: 0,
   answered: false,
@@ -95,7 +97,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'QUESTION_RESULTS':
       return { ...state, phase: 'results', results: action.results };
     case 'GAME_LEADERBOARD':
-      return { ...state, phase: 'leaderboard', leaderboard: action.leaderboard };
+      return { ...state, phase: 'leaderboard', previousLeaderboard: state.leaderboard, leaderboard: action.leaderboard };
     case 'GAME_ENDED':
       return { ...state, phase: 'finished', leaderboard: action.leaderboard };
     case 'ERROR':
