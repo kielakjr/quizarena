@@ -1,4 +1,3 @@
-import { Request, Response } from 'express';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -6,6 +5,7 @@ import { Server } from 'socket.io';
 import http from 'http';
 import { env } from './config/env';
 import { setUpSocket } from './socket';
+import { errorHandler } from './middleware/errorHandler';
 
 import authRoutes from './routes/auth.routes';
 import quizRoutes from './routes/quiz.routes';
@@ -29,6 +29,8 @@ setUpSocket(io);
 app.use('/auth', authRoutes);
 app.use('/quizzes', quizRoutes);
 app.use('/games', gameRoutes);
+
+app.use(errorHandler);
 
 export { server };
 export default app;
