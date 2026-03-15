@@ -20,7 +20,7 @@ export interface GameSession {
   currentQuestionIndex: number;
   questionStartedAt: number | null;
   questionTimer: ReturnType<typeof setTimeout> | null;
-  playerAnswers: Map<string, number>;
+  playerAnswers: Map<string, { optionIndex: number; answeredAt: number }>;
 }
 
 class GameStore {

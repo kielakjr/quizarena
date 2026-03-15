@@ -49,19 +49,19 @@ function resolveQuestion(io: Server, game: GameSession) {
   const correctIndex = q.options.findIndex((o) => o.isCorrect);
   const distribution = new Array(q.options.length).fill(0);
 
-  game.playerAnswers.forEach((optionIndex) => {
-    distribution[optionIndex]++;
+  game.playerAnswers.forEach((answer) => {
+    distribution[answer.optionIndex]++;
   });
 
   game.status = 'results';
 
   for (const [socketId, player] of game.players) {
-    const chosenIndex = game.playerAnswers.get(socketId);
-    const correct = chosenIndex === correctIndex;
+    const answer = game.playerAnswers.get(socketId);
+    const correct = answer?.optionIndex === correctIndex;
     let pointsEarned = 0;
 
-    if (correct && game.questionStartedAt) {
-      const timeTaken = (Date.now() - game.questionStartedAt) / 1000;
+    if (correct && game.questionStartedAt && answer) {
+      const timeTaken = (answer.answeredAt - game.questionStartedAt) / 1000;
       pointsEarned = Math.round(q.points * (1 - (timeTaken / q.timeLimit) * 0.5));
       pointsEarned = Math.max(Math.round(q.points * 0.5), pointsEarned);
       player.score += pointsEarned;
@@ -180,7 +180,7 @@ export function registerGameHandlers(io: Server, socket: Socket) {
     if (!game.players.has(socket.id)) return;
     if (game.playerAnswers.has(socket.id)) return;
 
-    game.playerAnswers.set(socket.id, optionIndex);
+    game.playerAnswers.set(socket.id, { optionIndex, answeredAt: Date.now() });
 
     if (game.hostSocketId) {
       io.to(game.hostSocketId).emit('question:answered', {
