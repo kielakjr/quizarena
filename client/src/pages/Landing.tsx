@@ -42,7 +42,7 @@ const Landing = () => {
 
       <div className="w-full max-w-sm bg-surface border border-border rounded-2xl p-8 shadow-lg shadow-primary/10">
         {step === 'pin' ? (
-          <form action={submitPin} className="flex flex-col gap-4">
+          <form onSubmit={(e) => { e.preventDefault(); submitPin(new FormData(e.currentTarget)); }} className="flex flex-col gap-4">
             <input
               type="text"
               name="pin"
@@ -62,7 +62,7 @@ const Landing = () => {
             </button>
           </form>
         ) : (
-          <form action={submitNickname} className="flex flex-col gap-4">
+          <form onSubmit={(e) => { e.preventDefault(); submitNickname(new FormData(e.currentTarget)); }} className="flex flex-col gap-4">
             <button
               type="button"
               onClick={() => setStep('pin')}

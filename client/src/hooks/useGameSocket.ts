@@ -58,6 +58,7 @@ type GameAction =
   | { type: 'GAME_LEADERBOARD'; leaderboard: LeaderboardEntry[] }
   | { type: 'GAME_ENDED'; leaderboard: LeaderboardEntry[] }
   | { type: 'ERROR'; message: string }
+  | { type: 'CLEAR_ERROR' }
   | { type: 'CONNECTED' };
 
 const initialState: GameState = {
@@ -102,6 +103,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, phase: 'finished', leaderboard: action.leaderboard };
     case 'ERROR':
       return { ...state, error: action.message };
+    case 'CLEAR_ERROR':
+      return { ...state, error: null };
     default:
       return state;
   }
@@ -187,8 +190,12 @@ export function useGameSocket() {
     socket?.emit('host:nextQuestion', { pin });
   }, [socket]);
 
+  const clearError = useCallback(() => {
+    dispatch({ type: 'CLEAR_ERROR' });
+  }, []);
+
   return {
     gameState: state,
-    actions: { joinAsHost, joinAsPlayer, startGame, submitAnswer, nextQuestion, showNextQuestion },
+    actions: { joinAsHost, joinAsPlayer, startGame, submitAnswer, nextQuestion, showNextQuestion, clearError },
   };
 }
