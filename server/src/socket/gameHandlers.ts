@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { gameStore, type GameSession } from './GameStore';
 import type { AuthPayload } from '../middleware/auth';
-import { set } from 'mongoose';
+import Quiz from '../models/Quiz';
 
 function getPlayerList(game: GameSession): { nickname: string; score: number }[] {
   return Array.from(game.players.values()).map((p) => ({
@@ -165,6 +165,7 @@ export function registerGameHandlers(io: Server, socket: Socket) {
     }
 
     game.currentQuestionIndex = 0;
+    Quiz.findByIdAndUpdate(game.quizId, { $inc: { timesPlayed: 1 } }).catch(() => {});
     io.to(pin).emit('game:countdown', { seconds: 3 });
     setTimeout(() => {
       io.to(pin).emit('game:started', {});
