@@ -12,10 +12,12 @@ import HostPage from './pages/HostPage';
 import EditQuizPage from './pages/EditQuizPage';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const App = () => {
   return (
     <BrowserRouter>
+      <ErrorBoundary>
       <AuthProvider>
         <SocketProvider>
           <Routes>
@@ -35,6 +37,7 @@ const App = () => {
           </Routes>
         </SocketProvider>
       </AuthProvider>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 };
