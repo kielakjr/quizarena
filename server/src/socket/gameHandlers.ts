@@ -54,6 +54,7 @@ function resolveQuestion(io: Server, game: GameSession) {
   });
 
   game.status = 'results';
+  gameStore.persist(game);
 
   for (const [socketId, player] of game.players) {
     const answer = game.playerAnswers.get(socketId);
@@ -144,6 +145,7 @@ export function registerGameHandlers(io: Server, socket: Socket) {
     socket.data.role = 'player';
     socket.data.pin = pin;
     socket.data.nickname = nickname;
+    gameStore.persist(game);
 
     io.to(pin).emit('player:joined', {
       nickname,
@@ -165,6 +167,7 @@ export function registerGameHandlers(io: Server, socket: Socket) {
     }
 
     game.currentQuestionIndex = 0;
+    gameStore.persist(game);
     Quiz.findByIdAndUpdate(game.quizId, { $inc: { timesPlayed: 1 } }).catch(() => {});
     io.to(pin).emit('game:countdown', { seconds: 3 });
     setTimeout(() => {
@@ -204,12 +207,14 @@ export function registerGameHandlers(io: Server, socket: Socket) {
     if (game.currentQuestionIndex >= game.quiz.questions.length) {
       const leaderboard = getLeaderboard(game);
       game.status = 'finished';
+      gameStore.persist(game);
       io.to(pin).emit('game:ended', { leaderboard });
       gameStore.removeGame(pin);
     } else {
       const leaderboard = getLeaderboard(game);
       const isGameOver = false;
       game.status = 'leaderboard';
+      gameStore.persist(game);
       io.to(pin).emit('game:leaderboard', { leaderboard, isGameOver });
     }
   });
@@ -243,6 +248,7 @@ export function registerGameHandlers(io: Server, socket: Socket) {
       const player = game.players.get(socket.id);
       game.players.delete(socket.id);
       game.playerAnswers.delete(socket.id);
+      gameStore.persist(game);
 
       io.to(pin).emit('player:left', {
         nickname: player?.nickname,
