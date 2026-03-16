@@ -1,7 +1,27 @@
 import { Request, Response } from 'express';
+import fs from 'fs/promises';
+import path from 'path';
 import { Quiz } from '../models/Quiz';
 import { createQuizSchema, updateQuizSchema } from '../validation/quiz';
 import { ZodError } from 'zod';
+
+function collectImagePaths(quiz: { coverImage?: string; questions: { imageUrl?: string }[] }): string[] {
+  const paths: string[] = [];
+  if (quiz.coverImage) paths.push(quiz.coverImage);
+  for (const q of quiz.questions) {
+    if (q.imageUrl) paths.push(q.imageUrl);
+  }
+  return paths;
+}
+
+async function deleteFiles(filePaths: string[]): Promise<void> {
+  const uploadsDir = path.join(__dirname, '../../uploads');
+  for (const fp of filePaths) {
+    const filename = fp.replace(/^\/uploads\//, '');
+    const fullPath = path.join(uploadsDir, filename);
+    await fs.unlink(fullPath).catch(() => {});
+  }
+}
 
 function parseMultipartBody(req: Request) {
   const body = { ...req.body };
@@ -119,10 +139,12 @@ export const updateQuiz = async (req: Request, res: Response): Promise<void> => 
   try {
     const body = parseMultipartBody(req);
     const { coverImage, questionImages } = getUploadedFiles(req);
+    const oldImages: string[] = [];
 
     const validated = updateQuizSchema.parse(body);
 
     if (coverImage) {
+      if (quiz.coverImage) oldImages.push(quiz.coverImage);
       (validated as any).coverImage = `/uploads/${coverImage.filename}`;
     }
 
@@ -145,6 +167,10 @@ export const updateQuiz = async (req: Request, res: Response): Promise<void> => 
       new: true,
       runValidators: true,
     });
+
+    if (oldImages.length > 0) {
+      await deleteFiles(oldImages);
+    }
 
     res.json({ quiz: updated });
   } catch (error) {
@@ -174,6 +200,8 @@ export const deleteQuiz = async (req: Request, res: Response): Promise<void> => 
     return;
   }
 
+  const imagePaths = collectImagePaths(quiz);
   await quiz.deleteOne();
+  await deleteFiles(imagePaths);
   res.json({ message: 'Quiz deleted' });
 };
