@@ -10,6 +10,7 @@ const DashboardPage = () => {
   const [quizzes, setQuizzes] = useState<QuizSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     api.get('/quizzes')
@@ -24,6 +25,8 @@ const DashboardPage = () => {
       setQuizzes((prev) => prev.filter((q) => q._id !== id));
     } catch {
       setError('Failed to delete quiz');
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -154,7 +157,7 @@ const DashboardPage = () => {
                       Edit
                     </Link>
                     <button
-                      onClick={() => handleDelete(quiz._id)}
+                      onClick={() => setDeleteId(quiz._id)}
                       className="text-sm border border-border text-text-muted hover:text-wrong hover:border-wrong/50 px-3 py-1.5 rounded-lg transition cursor-pointer"
                     >
                       Delete
@@ -166,6 +169,43 @@ const DashboardPage = () => {
           </div>
         )}
       </section>
+
+      <AnimatePresence>
+        {deleteId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4"
+            onClick={() => setDeleteId(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-surface border border-border rounded-xl p-6 max-w-sm w-full flex flex-col gap-4 shadow-xl"
+            >
+              <h3 className="text-lg font-semibold">Delete quiz?</h3>
+              <p className="text-text-muted text-sm">This action cannot be undone. The quiz and all its data will be permanently removed.</p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setDeleteId(null)}
+                  className="text-sm border border-border text-text-muted hover:text-text px-4 py-2 rounded-lg transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDelete(deleteId)}
+                  className="text-sm bg-wrong hover:brightness-110 text-white font-semibold px-4 py-2 rounded-lg transition cursor-pointer"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

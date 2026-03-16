@@ -128,9 +128,9 @@ const LobbyPage = () => {
             <span className="text-xs text-text-muted">{gameState.players.length} joined</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {gameState.players.map((player, i) => (
+            {gameState.players.map((player) => (
               <div
-                key={i}
+                key={player.nickname}
                 className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${
                   player.nickname === nickname
                     ? 'bg-primary/15 text-primary border border-primary/30'

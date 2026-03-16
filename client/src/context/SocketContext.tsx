@@ -8,7 +8,7 @@ interface SocketContextType {
 
 const SocketContext = createContext<SocketContextType | null>(null);
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export function SocketProvider({ children }: { children: ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null);
